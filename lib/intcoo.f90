@@ -171,7 +171,7 @@
       
       implicit none
 
-      integer*8                 :: i,k1,k2,k3,k4,k5,k6
+      integer*8                 :: i,k1,k2,k3,k4,k5,k6,k7,k8
       real*8, dimension(natm*3) :: xcoo
       real*8                    :: intcoo,pi,dot,&
                                    len1,len2,len3,len4
@@ -185,6 +185,8 @@
       k4=iatm(4)
       k5=iatm(5)
       k6=iatm(6)
+      k7=iatm(7)
+      k8=iatm(8)
       
       len1=0.0d0
       len2=0.0d0
@@ -194,8 +196,8 @@
       do i=1,3
          vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)
          vec2(i)=xcoo(k4*3-3+i)-xcoo(k3*3-3+i)
-         vec3(i)=xcoo(k1*3-3+i)-xcoo(k2*3-3+i)
-         vec4(i)=xcoo(k6*3-3+i)-xcoo(k5*3-3+i)
+         vec3(i)=xcoo(k6*3-3+i)-xcoo(k5*3-3+i)
+         vec4(i)=xcoo(k8*3-3+i)-xcoo(k7*3-3+i)
          len1=len1+vec1(i)**2
          len2=len2+vec2(i)**2
          len3=len3+vec3(i)**2

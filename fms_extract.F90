@@ -174,7 +174,7 @@
                   ndef=4
                else if (keyword(i).eq.'twist') then
                   ityp=4
-                  ndef=6
+                  ndef=8
                else
                   msg='Unknown internal coordinate type: '//trim(keyword(i))
                   call errcntrl(msg)
