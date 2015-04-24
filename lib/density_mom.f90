@@ -1,16 +1,24 @@
-  module density
+  module density_mom
     
     implicit none
 
   contains
 
 !#######################################################################
-! reddens: calculates the reduced density wrt a given internal
-!          coordinate using a Monte Carlo procedure as described in
-!          J. Phys. Chem. A, 111, 11305 (2007)
+! reddens_mom: calculates the reduced density in the momentum
+!              representation wrt a given internal coordinate using a 
+!              Monte Carlo procedure as described in
+!              J. Phys. Chem. A, 111, 11305 (2007)
+!
+! As it stands, this routine is very confusing as we end up with the
+! momenta being held in the arrays traj%r and the negatives of the
+! positions held in the arrays traj%p
+!
+! Hence, on the surface things may look erroneous but, hopefully, they
+! are actually OK...
 !#######################################################################
 
-    subroutine reddens
+    subroutine reddens_mom
 
       use trajdef
       use sysdef
@@ -22,10 +30,15 @@
 
       integer*8                        :: n,m,i,ibas,ibin,itmp,nalive,&
                                           iout
-      real*8, dimension(3*natm)        :: xcoo
+      real*8, dimension(3*natm)        :: xcoo,pcoo
       real*8                           :: icoo,dens,impfunc
       real*8, dimension(int(dgrid(4))) :: cent
       logical(kind=4)                  :: lpop,lbound
+
+!-----------------------------------------------------------------------
+! Transform the FMS wavefunction to the momentum representation
+!-----------------------------------------------------------------------
+      call pos2mom
 
 !-----------------------------------------------------------------------
 ! Initialise arrays
@@ -43,6 +56,12 @@
 ! interval
 !-----------------------------------------------------------------------
       call getcent(cent)
+
+!-----------------------------------------------------------------------
+! If we are dealing with a rectilinear Cartesian vector, then read the
+! vector file
+!-----------------------------------------------------------------------
+      if (ityp.lt.0) call rdvec
 
 !-----------------------------------------------------------------------
 ! Calculate the reduced density integrated over each partition of the
@@ -67,19 +86,19 @@
                ! IFGs that are dead
                lpop=ispop(i,n)
                if (.not.lpop) cycle
-               
+
                ! Select a live trajectory (indexed by ibas)
                call select_traj(ibas,i,n)
                
-               ! Using the selected trajectory, sample Cartesian
-               ! coordinates using the corresponding Gaussian
+               ! Using the selected trajectory, sample the Cartesian
+               ! momenta using the corresponding Gaussian
                ! distribution
 10             continue
-               call sample_cart(ibas,i,n,xcoo)
+               call sample_cart(ibas,i,n,pcoo,xcoo)
               
                ! Calculate the internal coordinate of interest at the
                ! chosen current geometry
-               icoo=x2int(xcoo)
+               icoo=x2int_mom(pcoo,xcoo)
                
                ! If the internal coordinate value is not contained within
                ! the user specified interval, then sample a different
@@ -92,11 +111,11 @@
                ibin=getbin(icoo)
                
                ! Calculate |Psi|^2 at the current geometry
-               call psixpsi(dens,xcoo,i,n)
+               call psixpsi(dens,pcoo,i,n)
 
                ! Calculate the value of the importance sampling function at
                ! the current geometry
-               call importance(impfunc,xcoo,i,n)
+               call importance(impfunc,pcoo,i,n)
 
                ! Get the no. IFGs alive at the current timestep
                call naliveifg(nalive,n)
@@ -126,10 +145,61 @@
 !-----------------------------------------------------------------------
       close(iout)
 
-
       return
   
-    end subroutine reddens
+    end subroutine reddens_mom
+
+!#######################################################################
+! pos2mom: constructs the FMS wavefunction in the momentum
+!#######################################################################
+
+    subroutine pos2mom
+
+      use sysdef
+      use trajdef
+
+      implicit none
+
+      integer*8                             :: i,ntraj,istep,itraj
+      real*8, dimension(natm*3)             :: alpha_tmp
+      real*8, dimension(:,:,:), allocatable :: r_tmp,p_tmp
+
+!-----------------------------------------------------------------------
+! Gaussian widths
+!-----------------------------------------------------------------------
+      do i=1,natm*3
+         alpha_tmp(i)=1.0d0/(4.0d0*alpha(i))
+      enddo
+      
+      alpha=alpha_tmp
+
+!-----------------------------------------------------------------------
+! Gaussian centres in phase space
+!
+! Confusingly, we load the momenta into the position array and vice
+! versa so that we can use the pre-existing Gaussian overlap routines
+! as they are
+!
+! P0 -> -R0
+! R0 -> +P0
+!-----------------------------------------------------------------------
+      do i=1,nintraj
+         ntraj=traj(i)%ntraj
+         allocate(r_tmp(ntraj,nstep,natm*3),p_tmp(ntraj,nstep,natm*3))
+         do itraj=1,ntraj
+            do istep=1,nstep
+               r_tmp(itraj,istep,:)=traj(i)%p(itraj,istep,:)
+               p_tmp(itraj,istep,:)=-traj(i)%r(itraj,istep,:)               
+            enddo
+         enddo
+         traj(i)%p=p_tmp
+         traj(i)%r=r_tmp
+         deallocate(r_tmp,p_tmp)
+      enddo
+
+      return
+
+    end subroutine pos2mom
 
 !#######################################################################
 ! densinit: allocates and initialises allocatable arrays used in the
@@ -184,6 +254,67 @@
     end subroutine getcent
 
 !#######################################################################
+! rdvec: reads the Cartesian vector from file
+!#######################################################################
+
+    subroutine rdvec
+
+      use sysdef
+      use expec
+      use parsemod
+
+      implicit none
+
+      integer*8                            :: unit,i,k
+      integer*8                            :: inkw
+      integer*8, parameter                 :: maxkw=60
+      integer*8, dimension(maxkw)          :: ilkw
+      real*8                               :: dp
+      character(len=120), dimension(maxkw) :: keyword
+
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      allocate(cartvec(natm*3))
+      allocate(refgeom(natm*3))
+      cartvec=0.0d0
+      refgeom=0.0d0
+
+!-----------------------------------------------------------------------
+! Open the vector file
+!-----------------------------------------------------------------------
+      unit=20
+      open(unit,file=vecfile,form='formatted',status='old')
+
+!-----------------------------------------------------------------------
+! Read the reference geometry and vector
+!-----------------------------------------------------------------------
+      read(unit,*)
+      read(unit,*)
+      do i=1,natm
+         call rdinp(unit,keyword,inkw,ilkw)
+         do k=1,3
+            read(keyword(1+k),*) refgeom(i*3-3+k)
+            read(keyword(4+k),*) cartvec(i*3-3+k)
+         enddo         
+      enddo
+
+!-----------------------------------------------------------------------
+! Close the vector file
+!-----------------------------------------------------------------------
+      close(unit)
+
+!-----------------------------------------------------------------------
+! Normalise the Cartesian vector
+!-----------------------------------------------------------------------
+      dp=dot_product(cartvec,cartvec)
+      cartvec=cartvec/sqrt(dp)
+
+      return
+
+    end subroutine rdvec
+
+!#######################################################################
 ! select_traj: selects a trajectory index j according to the 
 !              distribution f(j)=|C_j|^2
 !#######################################################################
@@ -231,7 +362,7 @@
 !              Gaussian distributions
 !#######################################################################
 
-    subroutine sample_cart(ibas,itraj,istep,xcoo)
+    subroutine sample_cart(ibas,itraj,istep,pcoo,xcoo)
 
       use trajdef
       use sysdef
@@ -239,7 +370,7 @@
       implicit none
 
       integer*8                 :: ibas,itraj,istep,i,j
-      real*8, dimension(3*natm) :: xcoo
+      real*8, dimension(3*natm) :: xcoo,pcoo
       real*8                    :: rcent,sigma,dx1,dx2,rsq
 
       ! Loop over Cartesian coordinates
@@ -262,9 +393,12 @@
             rsq=dx1*dx1+dx2*dx2
          enddo
 
-         xcoo(i)=rcent+sigma*dx1*sqrt(-2.d0*log(rsq)/rsq)
+         pcoo(i)=rcent+sigma*dx1*sqrt(-2.d0*log(rsq)/rsq)
 
       enddo
+
+      ! Note that we have the mapping R0 <-> -P0
+      xcoo=-traj(itraj)%p(ibas,istep,:)
 
       return
 
@@ -378,4 +512,4 @@
 
 !#######################################################################
 
-  end module density
+  end module density_mom

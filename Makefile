@@ -17,6 +17,7 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/intcoo.f90 \
      $(MODPATH)/gausstools.f90 \
      $(MODPATH)/density.f90 \
+     $(MODPATH)/density_mom.f90 \
      $(MODPATH)/adpop.f90 \
      $(MODPATH)/dysonmod.f90 \
      $(MODPATH)/dysonprep.f90 \

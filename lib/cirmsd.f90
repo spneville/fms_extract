@@ -141,15 +141,19 @@
 
       implicit none
 
-      integer*8                        :: nspawn,nci,i,j,imin
+      integer*8                        :: nspawn,nci,i,j,imin,nother,unit
       integer*8, dimension(nci)        :: nmatch
       real*8, dimension(nspawn,natm*3) :: xspawn
       real*8, dimension(nci,natm*3)    :: xci
       real*8, dimension(natm*3)        :: cigeom,spawngeom
-      real*8, dimension(nci)           :: rmsd
-      real*8                           :: fmin,pc
+      real*8, dimension(nspawn,nci)    :: rmsd
+      real*8                           :: fmin,pc,sum
+      real*8, parameter                :: tol=2.5d0
+      character(len=120)               :: atmp
 
       nmatch=0
+
+      nother=0
 
       ! Loop over spawn geometries
       do i=1,nspawn
@@ -160,26 +164,43 @@
             ! with the current ci geometry
             cigeom=xci(j,:)
             spawngeom=xspawn(i,:)
-            call kabsch(cigeom,spawngeom,rmsd(j))
+            call kabsch(cigeom,spawngeom,rmsd(i,j))
             ! If the current ci geometry is the closest yet to the
             ! curret spawn geometry, then set imin=j
-            if (rmsd(j).lt.fmin) then
+            if (rmsd(i,j).lt.fmin.and.rmsd(i,j).lt.tol) then
                imin=j
-               fmin=rmsd(j)
+               fmin=rmsd(i,j)
             endif
          enddo
-         nmatch(imin)=nmatch(imin)+1
+         if (fmin.lt.tol) then
+            nmatch(imin)=nmatch(imin)+1
+         else
+            nother=nother+1
+         endif
       enddo
 
-      ! Output results
+      ! Output results      
       write(6,*)
+      sum=0.0d0
       do i=1,nci
          pc=100.0d0*real(nmatch(i))/real(nspawn)
+         sum=sum+pc
          write(6,'(2x,a,x,i2,a1,2x,i3,x,a1,i2,a2)') &
               'Number of spawn geometries closest to CI geometry',&
               i,':',nmatch(i),'(',nint(pc),'%)'
       enddo
+      write(6,'(2x,a,38x,i3,x,a1,i2,a2)') &
+              'Other geometries:',nother,'(',nint(100.0d0-sum),'%)'
       write(6,*)
+
+      unit=20
+      open(unit,file='cirmsd.log',form='formatted',status='unknown')
+      atmp='Spawn geometry | RMSD_1 | ... | RMSD_NCI'
+      write(unit,'(a)') adjustl(trim(atmp))
+      do i=1,nspawn
+         write(unit,*) i,(rmsd(i,j),j=1,nci)
+      enddo
+      close(unit)
 
       return
 

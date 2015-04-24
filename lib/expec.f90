@@ -28,6 +28,14 @@
 !
 ! ityp:       internal coordinate type
 !
+! vecfile:    name of the xyz file containing a reference geometry and
+!             Cartesian vector. Used in the definition of the internal
+!             coordinate if the 'cartvec' option is used
+!
+! cartvec:    Cartesian vector
+!
+! refgeom:    reference geometry that veccoo is defined wrt
+!
 ! nmc:        no. samples to be used in the Monte Carlo procedure for
 !             the calculation of reduced densities
 !
@@ -92,12 +100,13 @@
     integer*8, dimension(10)                :: iatm
     integer*8                               :: ityp,nmc,dstep
     integer*8, dimension(:,:), allocatable  :: iionize
+    real*8, dimension(:), allocatable       :: cartvec,refgeom
     real*8, dimension(4)                    :: dgrid
     real*8, dimension(:,:), allocatable     :: adpop,gausspar
     real*8, dimension(:), allocatable       :: pfunc,ipshift
     real*8                                  :: eprobe,fwhm_e,fwhm_t
     real*8, dimension(3)                    :: egrid,tgrid
     logical(kind=4)                         :: lrenorm
-    character(len=80)                       :: cifile,dnormfile
+    character(len=80)                       :: cifile,dnormfile,vecfile
 
   end module expec

@@ -1,5 +1,8 @@
   program fms_extract
     
+    use expec, only: ityp,vecfile
+    use sysdef, only: lmomrep
+
     implicit none
     
     character(len=80)                            :: adirfile
@@ -9,7 +12,7 @@
 ! Read input
 !-----------------------------------------------------------------------
     call rdinpfile(adirfile)
-
+    
 !-----------------------------------------------------------------------
 ! Read list of directories
 !-----------------------------------------------------------------------
@@ -72,9 +75,11 @@
       ioutgeom=0
       nmc=20000
       dstep=20
+      vecfile=''
       ainp=''
       adirfile=''
       lrenorm=.false.
+      lmomrep=.false.
       
       acol_n=''
       acol_c=''
@@ -175,6 +180,8 @@
                else if (keyword(i).eq.'twist') then
                   ityp=4
                   ndef=8
+               else if (keyword(i).eq.'cartvec') then
+                  ityp=-1
                else
                   msg='Unknown internal coordinate type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -182,12 +189,23 @@
             else
                goto 100
             endif
-            ! Read indices of the atoms entering into the definition
-            ! of the given internal coordinate
-            do j=1,ndef
+            ! For an internal curvilinear coordinate, read indices of
+            ! the atoms entering into the definition of the given
+            ! internal coordinate
+            if (ityp.gt.0) then
+               do j=1,ndef
+                  i=i+2
+                  read(keyword(i),*) iatm(j)
+               enddo
+            endif
+            
+            ! For a rectilinear Cartesian vector, read the name of the
+            ! xyz file containing the reference geometry and the
+            ! vector
+            if (ityp.lt.0) then
                i=i+2
-               read(keyword(i),*) iatm(j)
-            enddo
+               read(keyword(i),'(a)') vecfile
+            endif
 
          else if (keyword(i).eq.'nmc') then
             if (keyword(i+1).eq.'=') then
@@ -407,6 +425,9 @@
                goto 100
             endif
 
+         else if (keyword(i).eq.'momentum_rep') then
+            lmomrep=.true.
+
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
@@ -540,10 +561,8 @@
     subroutine rddir(adirfile,adir)
       
       use sysdef
-
       use parsemod
       use errormod
-
 
       implicit none
 
@@ -1386,6 +1405,7 @@
 
       use expec, only: ijob
       use density
+      use density_mom
       use adpop
       use dysonprep
       use cirmsd
@@ -1409,7 +1429,11 @@
       if (ijob.eq.1) then
          call calcadpop
       else if (ijob.eq.3) then
-         call reddens
+         if (lmomrep) then
+            call reddens_mom
+         else
+            call reddens
+         endif
       else if (ijob.eq.4) then
          call mkdysoninp
       else if (ijob.eq.5) then
