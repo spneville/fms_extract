@@ -29,7 +29,7 @@
       implicit none
 
       integer*8                        :: n,m,i,ibas,ibin,itmp,nalive,&
-                                          iout
+                                          iout,count
       real*8, dimension(3*natm)        :: xcoo,pcoo
       real*8                           :: icoo,dens,impfunc
       real*8, dimension(int(dgrid(4))) :: cent
@@ -93,7 +93,9 @@
                ! Using the selected trajectory, sample the Cartesian
                ! momenta using the corresponding Gaussian
                ! distribution
+               count=0
 10             continue
+               count=count+1
                call sample_cart(ibas,i,n,pcoo,xcoo)
               
                ! Calculate the internal coordinate of interest at the
@@ -104,6 +106,14 @@
                ! the user specified interval, then sample a different
                ! Cartesian geometry
                lbound=isbound(icoo)
+               if (.not.lbound) then
+                  if (count.gt.8000) then
+                     goto 999
+                  else
+                     goto 10
+                  endif
+               endif
+
                if (.not.lbound) goto 10
                
                ! Determine the bin that contains the internal coordinate 
@@ -128,12 +138,12 @@
             
          enddo
          
-         ! Check that the probabilities sum to unity
+!         ! Check that the probabilities sum to unity
 !         sum=0.0d0
 !         do k=1,int(dgrid(4))
-!            sum=sum+pfunc(n,k)
+!            sum=sum+pfunc(k)
 !         enddo
-!         print*,"SUM:",sum,"NALIVE",nalive
+!         print*,"SUM:",sum
 
          ! Output the integrated densities at the current timestep
          call outintdens(iout,n,pfunc,cent)
@@ -146,7 +156,13 @@
       close(iout)
 
       return
-  
+      
+999   continue
+      write (6,'(/,2x,a,/)') 'It has not been possible to sample a &
+           geometry within the given coordinate range. Please increase &
+           this range'
+      STOP
+
     end subroutine reddens_mom
 
 !#######################################################################
@@ -371,13 +387,13 @@
 
       integer*8                 :: ibas,itraj,istep,i,j
       real*8, dimension(3*natm) :: xcoo,pcoo
-      real*8                    :: rcent,sigma,dx1,dx2,rsq
+      real*8                    :: pcent,sigma,dx1,dx2,rsq
 
       ! Loop over Cartesian coordinates
       do i=1,3*natm
 
          ! Centre of the selected trajectory
-         rcent=traj(itraj)%r(ibas,istep,i)
+         pcent=traj(itraj)%r(ibas,istep,i)
 
          ! Generate random Cartesian coordinates according to
          ! the Gaussian distribution associated with the
@@ -393,7 +409,7 @@
             rsq=dx1*dx1+dx2*dx2
          enddo
 
-         pcoo(i)=rcent+sigma*dx1*sqrt(-2.d0*log(rsq)/rsq)
+         pcoo(i)=pcent+sigma*dx1*sqrt(-2.d0*log(rsq)/rsq)
 
       enddo
 

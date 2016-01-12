@@ -295,9 +295,11 @@
       enddo
 
 !-----------------------------------------------------------------------
-! Calculate the momentum conjugate to the Cartesian vector
+! Calculate the projection of the momentum onto the vector
 !-----------------------------------------------------------------------
       intmom=dot_product(tvec,pcoo)
+
+!      intmom=abs(intmom)
 
       return
 
@@ -436,37 +438,6 @@
             enddo
          enddo
       enddo
-
-!-----------------------------------------------------------------------
-! For debugging purposes, calculate the minimum possible residual
-!-----------------------------------------------------------------------
-      min=0.0d0
-      do k=1,natm
-         do j=1,3
-            min=min+x1mat(k,j)**2+x2mat(k,j)**2
-         enddo
-      enddo
-      min=(min/natm)-(2.0d0/natm)*(sigma(1)+sigma(2)+sigma(3)*d)
-
-!-----------------------------------------------------------------------
-! Rotate the spawn geometry
-!-----------------------------------------------------------------------
-      do i=1,natm
-         do j=1,3
-            rotx(i*3-3+j)=0.0
-            do k=1,3
-               rotx(i*3-3+j)=rotx(i*3-3+j)+&
-                    rotmat(k,j)*x2(i*3-3+k)
-            enddo
-         enddo
-      enddo
-
-      rmsd=0.0d0
-      do i=1,natm*3
-         rmsd=rmsd+(rotx(i)-x1(i))**2
-      enddo
-      rmsd=rmsd/natm
-      rmsd=sqrt(rmsd)
 
       return
 

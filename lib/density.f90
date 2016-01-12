@@ -21,7 +21,7 @@
       implicit none
 
       integer*8                        :: n,m,i,ibas,ibin,itmp,nalive,&
-                                          iout
+                                          iout,count
       real*8, dimension(3*natm)        :: xcoo
       real*8                           :: icoo,dens,impfunc
       real*8, dimension(int(dgrid(4))) :: cent
@@ -74,7 +74,9 @@
                ! Using the selected trajectory, sample Cartesian
                ! coordinates using the corresponding Gaussian
                ! distribution
+               count=0
 10             continue
+               count=count+1
                call sample_cart(ibas,i,n,xcoo)
               
                ! Calculate the internal coordinate of interest at the
@@ -85,8 +87,14 @@
                ! the user specified interval, then sample a different
                ! Cartesian geometry
                lbound=isbound(icoo)
-               if (.not.lbound) goto 10
-               
+               if (.not.lbound) then
+                  if (count.gt.1000) then
+                     goto 999
+                  else
+                     goto 10
+                  endif
+               endif
+
                ! Determine the bin that contains the internal coordinate 
                ! value 
                ibin=getbin(icoo)
@@ -103,8 +111,8 @@
 
                ! Add the importance-function-weighted density to the current
                ! bin
-               pfunc(ibin)=pfunc(ibin)+dens/(impfunc*nmc*nalive)
-
+!               pfunc(ibin)=pfunc(ibin)+dens/(impfunc*nmc*nalive)
+               pfunc(ibin)=pfunc(ibin)+dens/(impfunc*nmc*nintraj)
             enddo
             
          enddo
@@ -126,8 +134,13 @@
 !-----------------------------------------------------------------------
       close(iout)
 
-
       return
+
+999   continue
+      write (6,'(/,2x,a,/)') 'It has not been possible to sample a &
+           geometry within the given coordinate range. Please increase &
+           this range'
+      STOP
   
     end subroutine reddens
 

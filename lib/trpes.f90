@@ -146,16 +146,16 @@
          ! Get the list of timesteps/subdirectories
          call getsubdirs(amaindir(i),nsubdir,asubdir,step)
 
+         ! Read the coefficients for each timestep/subdirectory
+         call getcoeff(coeff,amaindir(i),asubdir,nsubdir)
+
          ! Determine the ionization energies for each
          ! timestep/subdirectory
-         call getip(ip,amaindir(i),asubdir,nsubdir)
+         call getip(ip,amaindir(i),asubdir,nsubdir,coeff)
 
          ! Read the Dyson orbital norms for each ionization
          ! channel for each timestep/subdirectory
-         call getdnorm(dnorm,amaindir(i),asubdir,nsubdir,step)
-
-         ! Read the coefficients for each timestep/subdirectory
-         call getcoeff(coeff,amaindir(i),asubdir,nsubdir)
+         call getdnorm(dnorm,amaindir(i),asubdir,nsubdir,step,coeff)
 
          ! Calcuate the contribution to the TRPES from the current
          ! trajectory
@@ -284,7 +284,7 @@
 
 !#######################################################################
 
-    subroutine getip(ip,amaindir,asubdir,nsubdir)
+    subroutine getip(ip,amaindir,asubdir,nsubdir,coeff)
 
       use expec
 
@@ -294,6 +294,8 @@
                                                 sn,sc
       real*8, dimension(:,:), allocatable    :: ip
       real*8, dimension(30)                  :: en_n,en_c
+      real*8                                 :: csq
+      complex*16, dimension(nsubdir)         :: coeff
       character(len=120)                     :: amaindir
       character(len=120), dimension(nsubdir) :: asubdir
       character(len=270)                     :: acolout
@@ -362,6 +364,17 @@
             sc=iionize(j,2)
             ip(i,j)=(en_c(sc)-en_n(sn))*27.211d0+ipshift(j)            
          enddo
+   
+         cycle
+      
+         ! Die here if we have not found a set of mrci energies
+999      continue
+         csq=conjg(coeff(i))*coeff(i)
+         if (csq.gt.1d-4) then
+            write(6,'(/,2x,2(a,x),/)') &
+                 'mrci energies not found in the file:',trim(acolout)
+            STOP
+         endif
 
       enddo
 
@@ -370,16 +383,19 @@
 !-----------------------------------------------------------------------
 ! Die here if we have not found a set of mrci energies
 !-----------------------------------------------------------------------
-999   continue
-      write(6,'(/,2x,2(a,x),/)') &
-           'mrci energies not found in the file:',trim(acolout)
-      STOP
+!999   continue
+!      csq=conjg(coeff(i))*coeff(i)
+!      if (csq.gt.1d-4) then
+!         write(6,'(/,2x,2(a,x),/)') &
+!              'mrci energies not found in the file:',trim(acolout)
+!         STOP
+!      endif
 
     end subroutine getip
 
 !#######################################################################
 
-    subroutine getdnorm(dnorm,amaindir,asubdir,nsubdir,step)
+    subroutine getdnorm(dnorm,amaindir,asubdir,nsubdir,step,coeff)
 
       use expec
 
@@ -389,6 +405,8 @@
                                                 dj,n
       integer*8, dimension(nsubdir)          :: step
       real*8, dimension(:,:), allocatable    :: dnorm
+      real*8                                 :: csq
+      complex*16, dimension(nsubdir)         :: coeff
       character(len=120)                     :: amaindir
       character(len=120), dimension(nsubdir) :: asubdir
       character(len=270)                     :: asdout
@@ -448,6 +466,17 @@
 
          enddo
 
+         cycle
+
+         ! Die here if we have not found a Dyson orbital norm 
+999      continue
+         csq=conjg(coeff(i))*coeff(i)
+         if (csq.gt.1d-4) then
+            write(6,'(/,2x,2(a,x),/)') &
+                 'Dyson orbital norm not found in the file:',trim(asdout)
+            STOP
+         endif
+
       enddo
 
       return
@@ -455,10 +484,10 @@
 !-----------------------------------------------------------------------
 ! Die here if we have not found a Dyson orbital norm
 !-----------------------------------------------------------------------
-999   continue
-      write(6,'(/,2x,2(a,x),/)') &
-           'Dyson orbital norm not found in the file:',trim(asdout)
-      STOP
+!999   continue
+!      write(6,'(/,2x,2(a,x),/)') &
+!           'Dyson orbital norm not found in the file:',trim(asdout)
+!      STOP
 
     end subroutine getdnorm
 
