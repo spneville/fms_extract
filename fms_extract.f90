@@ -24,6 +24,11 @@
     call rdgeom(adir)
 
 !-----------------------------------------------------------------------
+! Assign Gaussian widths
+!-----------------------------------------------------------------------
+    call getwidths
+
+!-----------------------------------------------------------------------
 ! Read the wavefunction and spawn geometries for each bundle of
 ! trajectories
 !-----------------------------------------------------------------------
@@ -32,8 +37,11 @@
 !-----------------------------------------------------------------------
 ! Determine whether or not a dummy atom is present (we assume that
 ! this is placed at the centre of mass)
+!
+! N.B., this only works if the INPUT directory is present, so for now
+!       we will leave this as a user-specified argument
 !-----------------------------------------------------------------------
-    call getdummy(adir(1))
+!    call getdummy(adir(1))
 
 !-----------------------------------------------------------------------
 ! Calculate the requested expectation values
@@ -111,6 +119,10 @@
 
       adcfile=''
       
+      ldummy=.false.
+
+      thrsh_alive=0.0d0
+
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -462,6 +474,17 @@
                goto 100
             endif
             
+         else if (keyword(i).eq.'col_dummy') then
+            ldummy=.true.
+
+         else if (keyword(i).eq.'thrsh_alive') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) thrsh_alive
+               thrsh_alive=thrsh_alive*41.341375d0
+            else
+               goto 100
+            endif
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
@@ -696,6 +719,7 @@
 !-----------------------------------------------------------------------
       read(unit,*)
       read(unit,*) n
+      natm=n
       allocate(atlbl(n),atnum(n),atmass(n))
 
 !-----------------------------------------------------------------------
@@ -759,22 +783,18 @@
 
          ! Output where we are up to
          k=len_trim(adir(i))
-         write(6,'(a21,i3,1x,a3,i3,a2,1x,a)') 'Processing directory',i,'of',nintraj,&
-              ':',adir(i)(1:k)
+         write(6,'(a21,i3,1x,a3,i3,a2,1x,a)') 'Processing directory',&
+              i,'of',nintraj,':',adir(i)(1:k)
 
          ! Make temporary directory to work from
          call mktmpdir(adir(i),atmp)
 
          ! Determine propagation length, dt, nspawn, etc
          nspawn=traj(i)%ntraj-1
-         call propinfo(i,nspawn,atmp,adir(i))
+         call propinfo(i,nspawn,atmp,adir(i))         
 
          ! Allocate and initialise arrays
          call alloc(i)
-
-         ! Read Gaussian widths (frozen Gaussian basis, so the same for
-         ! all trajectories)
-         if (i.eq.1) call rdwidths(adir(i))
 
          ! Read the TrajDump files
          call rdtrajdump(i,atmp)
@@ -838,8 +858,9 @@
 
       integer*8          :: k
       character(len=80)  :: currdir
-      character(len=150) :: acmnd,stem,atmp
-      logical   :: ldir
+      character(len=150) :: stem,atmp
+      character(len=250) :: acmnd
+      logical            :: ldir,found
 
 !-----------------------------------------------------------------------
 ! Make temporary directory
@@ -848,7 +869,14 @@
       stem=''
 
       ! Set directory stem
-      stem=trim(currdir)//'/OUTPUT'
+      ! If the OUTPUT directory is not present, then we assume that
+      ! all the output files are in the main directory
+      inquire(file=trim(currdir)//'/OUTPUT/.',exist=found)
+      if (found) then
+         stem=trim(currdir)//'/OUTPUT'
+      else 
+         stem=trim(currdir)
+      endif
       
       ! If TMP directory already exists, remove
       inquire(file=trim(stem)//'/TMP/.',exist=ldir)
@@ -865,12 +893,11 @@
 !-----------------------------------------------------------------------
 ! Copy all gzipped files to TMP and unzip them
 !-----------------------------------------------------------------------
-      acmnd=''
-      k=len_trim(stem)
-      acmnd='cp '//stem(1:k)//'/*.gz '//stem(1:k)//'/TMP'
-      call system(acmnd)         
-      acmnd=''
-      acmnd='gunzip '//stem(1:k)//'/TMP/*.gz'
+!      acmnd='cp '//trim(stem)//'/*.gz '//trim(stem)//'/TMP'
+      acmnd='cp '//trim(stem)//'/*.* '//trim(stem)//'/TMP'      
+      call system(acmnd)
+
+      acmnd='gunzip -f '//trim(stem)//'/TMP/*.gz'
       call system(acmnd)
 
       return
@@ -893,23 +920,21 @@
 
 !-----------------------------------------------------------------------
 ! Read the FMS log file and determine the no. spawned trajectories, tf
-!  and dt
-!-----------------------------------------------------------------------      
-      ! (1) FMS.out: no. spawned trajectories
+! and dt
+!-----------------------------------------------------------------------
+      ! (1) Spawn.log: no. spawned trajectories
       unit=20
-      afile=''
-      k=len_trim(currdir)
-      afile=currdir(1:k)//'/FMS.out'
+      afile=trim(atmp)//'/Spawn.log'
       open(unit,file=afile,form='formatted',status='old')
-
+      
       nspawn=0
+      read(unit,*)
 10    continue
-      read(unit,'(a)',end=15) string
-
-      if (string(20:32).eq.'child created') nspawn=nspawn+1
+      read(unit,*,end=11)
+      nspawn=nspawn+1
       goto 10
+11    continue
 
-15    continue
       close(unit)
 
       ! (2) Control.dat: system and propagation info
@@ -923,7 +948,8 @@
       call getstart(string,k)
       if (string(k:k+13).eq.'SimulationTime') then
          call getval(string,tf)
-      else if (string(k:k+7).eq.'TimeStep') then
+      else if (string(k:k+7).eq.'TimeStep'.and.&
+           index(string,'Rejection').eq.0) then
          call getval(string,dt)
       else if (string(k:k+8).eq.'NumStates') then
          call getval(string,ftmp)
@@ -982,12 +1008,6 @@
       allocate(traj(itraj)%coe(ntraj,nstep))
       traj(itraj)%coe=0.0d0
 
-      ! Widths
-      if (.not.allocated(alpha)) then
-         allocate(alpha(natm*3))
-         alpha=0.0d0
-      endif
-
       ! Timesteps at which trajectories were killed
       if (allocated(traj(itraj)%tkill)) deallocate(traj(itraj)%tkill)
       allocate(traj(itraj)%tkill(ntraj))
@@ -1019,50 +1039,56 @@
 
 !#######################################################################
 
-    subroutine rdwidths(currdir)
+    subroutine getwidths
 
       use sysdef
 
       implicit none
-
-      integer*8          :: unit,count,pos,i
-      real*8             :: ftmp
-      character(len=80)  :: currdir
-      character(len=90)  :: afile,string
+      
+      integer :: i
+      real*8  :: width
 
 !-----------------------------------------------------------------------
-! Open FMS log file
+! Default Gaussian widths
 !-----------------------------------------------------------------------
-      unit=20
-      afile=trim(currdir)//'/FMS.out'
-      open(unit,file=afile,form='formatted',status='old')
+      allocate(alpha(natm*3))
 
-!-----------------------------------------------------------------------
-! Read Gaussian widths
-!-----------------------------------------------------------------------
-      count=0
-      pos=0
-10    continue
-      read(unit,'(a)',end=999) string
+      do i=1,natm
 
-      if (string(7:11).eq.'Width') then
-         read(string,'(19x,F12.8)') ftmp
-         pos=pos+3
-         do i=pos-2,pos
-            alpha(i)=ftmp
-         enddo
-      endif
+         select case(atlbl(i))
 
-      if (count.lt.natm) goto 10
+         case('H','h')
+            width=4.5d0
 
-999   continue
+         case('C','c')
+            width=22.5d0
 
-!-----------------------------------------------------------------------
-! Close FMS log file
-!-----------------------------------------------------------------------
-      close(unit)
+         case('N','n')
+            width=19.5d0
 
-    end subroutine rdwidths
+         case('O','o')
+            width=13.0d0
+
+         case('S','s')
+            width=17.5d0
+
+         case('F','f')
+            width=8.5d0
+
+         case default
+            write(6,'(/,2(2x,a),/)') 'Unknown atom type:',&
+                 trim(atlbl(i))
+            STOP
+
+         end select
+
+         alpha(i*3-2:i*3)=width
+
+      enddo
+
+      return
+      
+    end subroutine getwidths
 
 !#######################################################################
 
@@ -1421,6 +1447,8 @@
 
       read(string(ilbl:jlbl),*) ftmp
 
+      return
+
     end subroutine getval
 
 !#######################################################################
@@ -1429,16 +1457,21 @@
       
       implicit none
 
-      integer*8          :: k
       character(len=80)  :: currdir
       character(len=150) :: atmp
+      logical            :: found
 
 !-----------------------------------------------------------------------
 ! Remove the current temporary directory
 !-----------------------------------------------------------------------
-      atmp=''
-      k=len_trim(currdir)
-      atmp='rm -r '//currdir(1:k)//'/OUTPUT/TMP'
+      inquire(file=trim(currdir)//'/OUTPUT/.',exist=found)
+      
+      if (found) then
+         atmp='rm -r '//trim(currdir)//'/OUTPUT/TMP'
+      else
+         atmp='rm -r '//trim(currdir)//'/TMP'
+      endif
+
       call system(atmp)
 
       return
