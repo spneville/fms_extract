@@ -122,6 +122,8 @@
       ldummy=.false.
 
       thrsh_alive=0.0d0
+      
+      tfinal=0.0d0
 
 !-----------------------------------------------------------------------
 ! Read input file name
@@ -485,6 +487,16 @@
             else
                goto 100
             endif
+            
+         else if (keyword(i).eq.'tfinal') then
+             if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) tfinal
+               tfinal=tfinal*41.341375d0
+            else
+               goto 100
+            endif
+
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
@@ -574,20 +586,8 @@
       endif
 
       if (ijob.eq.7) then
-         if (adcfile(1).eq.'') then
-            msg='The IP-ADC template file has not been given'
-            call errcntrl(msg)
-         endif
-         if (adcfile(2).eq.'') then
-            msg='The ADC Davidson template file has not been given'
-            call errcntrl(msg)
-         endif
-         if (adcfile(3).eq.'') then
-            msg='The ADC SI template file has not been given'
-            call errcntrl(msg)
-         endif
-         if (acol_n.eq.'') then
-            msg='Columbus directory name not given'
+         if (adcfile(1).eq.''.and.adcfile(2).eq.''.and.adcfile(3).eq.'') then
+            msg='No ADC template files have been given'
             call errcntrl(msg)
          endif
       endif
@@ -928,10 +928,9 @@
       open(unit,file=afile,form='formatted',status='old')
       
       nspawn=0
-      read(unit,*)
 10    continue
-      read(unit,*,end=11)
-      nspawn=nspawn+1
+      read(unit,'(a)',end=11) string
+      if (index(string,'#').eq.0) nspawn=nspawn+1
       goto 10
 11    continue
 

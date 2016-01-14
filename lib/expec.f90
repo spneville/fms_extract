@@ -111,7 +111,7 @@
                                               vecfile
 
     integer*8, dimension(3)                :: nlines
-    real*8                                 :: thrsh_alive
+    real*8                                 :: thrsh_alive,tfinal
     character(len=80), dimension(3)        :: adcfile
     character(len=120), dimension(3,200)   :: adcinp
     logical(kind=4)                        :: ldummy

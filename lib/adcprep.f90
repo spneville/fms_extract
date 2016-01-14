@@ -13,7 +13,7 @@
       
       implicit none
       
-      integer*8          :: i,k,n
+      integer*8          :: i,k,n,stepf
       real*8, parameter  :: coethrsh=0.05d0
       real*8             :: coesq,talive
       complex*16         :: coe
@@ -33,7 +33,7 @@
          do k=1,traj(i)%ntraj           
             ! Skip the current trajectory if it did not live
             ! long enough
-            talive=traj(i)%tkill(k)-traj(i)%tspawn(k)
+            talive=(traj(i)%tkill(k)-traj(i)%tspawn(k))*dt
             if (talive.lt.thrsh_alive) cycle
             ! Get main directory name
             call getmaindir(amain,i,k)
@@ -57,6 +57,13 @@
       write(6,'(25x,a)') 'Creating Input Files'
       write(6,'(70a)') ('-',i=1,70)
       
+      ! Set the final timestep
+      if (tfinal.eq.0.0d0) then
+         stepf=nstep
+      else
+         stepf=1+int(tfinal/dt)
+      endif
+
       ! Loop over IFGs
       do i=1,nintraj
          ! Loop over trajectories for the current IFG
@@ -64,14 +71,14 @@
 
             ! Skip the current trajectory if it did not live
             ! long enough
-            talive=traj(i)%tkill(k)-traj(i)%tspawn(k)
+            talive=(traj(i)%tkill(k)-traj(i)%tspawn(k))*dt
             if (talive.lt.thrsh_alive) cycle
 
             write(6,'(2x,a3,x,i3,x,a12,i3)') 'IFG',i,', Trajectory',k
 
             ! Loop over timesteps
-            do n=1,nstep,dstep
-               
+            do n=1,stepf,dstep
+
                ! Only proceed if the current trajectory has not yet
                ! been killed
                if (n.ge.traj(i)%tkill(k)) cycle
@@ -85,11 +92,7 @@
 
                ! Write the state index of the current trajectory to
                ! current subdirectory
-               call wrstatenumber(asub,i,k)
-
-               ! Copy the Columbus and superdyson preparation
-               ! directories to the current subdirectory
-               call copyinpdirs_adc(asub)
+               call wrstatenumber(asub,i,k)               
 
                ! Write the current Cartesian coordinates to the
                ! columbus geom file               
@@ -121,6 +124,8 @@
       ! Loop over the different template files
       do n=1,3
       
+         if (adcfile(n).eq.'') cycle
+
          ! Open the template file
          call getfreeunit(unit)
          open(unit,file=adcfile(n),form='formatted',status='old')
