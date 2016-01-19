@@ -125,6 +125,8 @@
       
       tfinal=0.0d0
 
+      adcdir_file=''
+
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -176,6 +178,8 @@
                   ijob=6
                else if (keyword(i).eq.'adc_prep') then
                   ijob=7
+               else if (keyword(i).eq.'adc_trxas') then
+                  ijob=8
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -497,6 +501,14 @@
                goto 100
             endif
 
+         else if (keyword(i).eq.'adc_dir_file') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),'(a)') adcdir_file
+            else
+               goto 100
+            endif
+
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
@@ -592,6 +604,21 @@
          endif
       endif
       
+      if (ijob.eq.8) then
+         if (adcdir_file.eq.'') then
+            msg='The name of the ADC directory file has not been given'
+            call errcntrl(msg)
+         endif
+         if (egrid(1).eq.-999) then
+            msg='Bounds on the photoelectron energy have not been given'
+            call errcntrl(msg)
+         endif
+         if (tgrid(1).eq.-999) then
+            msg='Bounds on the pump-probe delay have not been given'
+            call errcntrl(msg)
+         endif
+      endif
+
 !-----------------------------------------------------------------------
 ! If the job type is the calculation of a TRPES, then:
 !
@@ -1527,7 +1554,8 @@
       use cirmsd
       use trpes
       use adcprep
-      
+      use adctas
+
       implicit none
 
 !-----------------------------------------------------------------------   
@@ -1544,6 +1572,7 @@
 !      6 <-> Calculation of TRPES using Dyson orbital norms
 !      7 <-> Preparation of input files for ADC absorption or
 !            photoionization cross-section calculations
+!      8 <>  Calculation of the TR-TXAS using ADC cross-sections
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -1561,6 +1590,8 @@
          call trpes_dnorm
       else if (ijob.eq.7) then
          call mkadcinp
+      else if (ijob.eq.8) then
+         call adc_trtxas
       endif
 
       return

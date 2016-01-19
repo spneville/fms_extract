@@ -110,10 +110,14 @@
     character(len=80)                      :: cifile,dnormfile,&
                                               vecfile
 
+    ! adcprep
     integer*8, dimension(3)                :: nlines
     real*8                                 :: thrsh_alive,tfinal
     character(len=80), dimension(3)        :: adcfile
     character(len=120), dimension(3,200)   :: adcinp
     logical(kind=4)                        :: ldummy
-    
+
+    ! adc_trxas
+    character(len=120)                     :: adcdir_file
+   
   end module expec

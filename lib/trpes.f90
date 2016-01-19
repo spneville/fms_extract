@@ -217,10 +217,13 @@
       character(len=120), dimension(nmaindir) :: amaindir
       character(len=130)                      :: ain
 
+      unit=20
+
       do i=1,nmaindir         
          ain=trim(amaindir(i))//'/state_id'
          open(unit,file=ain,form='formatted',status='old')
          read(unit,*) staindx(i)
+         close(unit)
       enddo
 
     end subroutine getstaindx
@@ -631,7 +634,7 @@
       ! Loop over grid points
       do i=1,int(egrid(3))+1
          write(iout,*)
-         do j=1,int(tgrid(3))+1      
+         do j=1,int(tgrid(3))+1
             ! Set the current energy and time
 !            e=(i-1)*dele
 !            t=(j-1)*delt
