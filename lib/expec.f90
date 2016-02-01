@@ -118,6 +118,8 @@
     logical(kind=4)                        :: ldummy
 
     ! adc_trxas
+    real*8                                 :: gamma
+    integer*8                              :: siord
     character(len=120)                     :: adcdir_file
    
   end module expec

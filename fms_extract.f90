@@ -127,6 +127,10 @@
 
       adcdir_file=''
 
+      gamma=0.0d0
+      
+      siord=0
+
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -179,7 +183,21 @@
                else if (keyword(i).eq.'adc_prep') then
                   ijob=7
                else if (keyword(i).eq.'adc_trxas') then
-                  ijob=8
+                  if (keyword(i+1).eq.',') then
+                     i=i+2
+                     if (keyword(i).eq.'bound') then
+                        ijob=8
+                     else if (keyword(i).eq.'cont') then
+                        ijob=9
+                     else
+                        msg='Unknown keyword: '//trim(keyword(i))
+                        call errcntrl(msg)
+                     endif
+                  else
+                     msg='The portion of the TR-XAS spectrum (bound or &
+                          cont has not been specified)'
+                     call errcntrl(msg)
+                  endif
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -509,6 +527,23 @@
                goto 100
             endif
 
+         else if (keyword(i).eq.'gamma') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) gamma
+               gamma=gamma/27.2113845d0
+            else
+               goto 100
+            endif
+
+         else if (keyword(i).eq.'si_order') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) siord
+            else
+               goto 100
+            endif
+
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
@@ -604,7 +639,7 @@
          endif
       endif
       
-      if (ijob.eq.8) then
+      if (ijob.eq.8.or.ijob.eq.9) then
          if (adcdir_file.eq.'') then
             msg='The name of the ADC directory file has not been given'
             call errcntrl(msg)
@@ -615,6 +650,21 @@
          endif
          if (tgrid(1).eq.-999) then
             msg='Bounds on the pump-probe delay have not been given'
+            call errcntrl(msg)
+         endif
+         if (crosscorr.eq.0.0d0) then
+            msg='Pump/probe cross correlation not given'
+            call errcntrl(msg)
+         endif
+         if (gamma.eq.0.0d0) then
+            msg='The Gamma value has not been given'
+            call errcntrl(msg)
+         endif
+      endif
+
+      if (ijob.eq.9) then
+         if (siord.eq.0) then
+            msg='The Stieltjes imaging order has not been given'
             call errcntrl(msg)
          endif
       endif
@@ -636,6 +686,11 @@
          ! (2) Gaussian broadening parameters
          fwhm_t=crosscorr
          fwhm_e=en_fwhm(dtprobe)
+      endif
+
+      ! TR-TXAS
+      if (ijob.eq.8.or.ijob.eq.9) then
+         fwhm_t=crosscorr
       endif
 
       return
@@ -1572,7 +1627,10 @@
 !      6 <-> Calculation of TRPES using Dyson orbital norms
 !      7 <-> Preparation of input files for ADC absorption or
 !            photoionization cross-section calculations
-!      8 <>  Calculation of the TR-TXAS using ADC cross-sections
+!      8 <-> Calculation of the bound part of the TR-TXAS using 
+!            ADC cross-sections
+!      9 <-> Calculation of the continuum part of the TR-TXAS using 
+!            ADC cross-sections
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -1590,7 +1648,7 @@
          call trpes_dnorm
       else if (ijob.eq.7) then
          call mkadcinp
-      else if (ijob.eq.8) then
+      else if (ijob.eq.8.or.ijob.eq.9) then
          call adc_trtxas
       endif
 

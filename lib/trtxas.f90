@@ -10,6 +10,7 @@
     real*8, parameter                             :: c_au=137.03604d0
     real*8                                        :: pi=3.14159265358979d0
     character(len=120), dimension(:), allocatable :: amaindir
+    logical                                       :: lcont,lbound
 
   contains
 
@@ -30,6 +31,17 @@
       write(6,'(11x,a)') 'Calculating the TR-TXAS using ADC &
            cross-sections'
       write(6,'(70a)') ('-',i=1,70)
+
+!-----------------------------------------------------------------------
+! Set job type flags
+!-----------------------------------------------------------------------
+      lbound=.false.
+      lcont=.false.
+      if (ijob.eq.8) then
+         lbound=.true.
+      else if (ijob.eq.9) then
+         lcont=.true.
+      endif
 
 !-----------------------------------------------------------------------
 ! Read the names of the main directories
@@ -157,17 +169,27 @@
 !-----------------------------------------------------------------------
 ! Determine the no. final space Davidson states
 !-----------------------------------------------------------------------
-      call getsubdirs(amaindir(1),nsubdir,asubdir,step)
-      call getcontrib(ncontrib,icontrib,amaindir(1),asubdir,nsubdir)
-      call get_nstates_f(nstates_f,amaindir(1),asubdir,nsubdir,icontrib)
+      if (lbound) then
+         call getsubdirs(amaindir(1),nsubdir,asubdir,step)
+         call getcontrib(ncontrib,icontrib,amaindir(1),asubdir,nsubdir)
+         call get_nstates_f(nstates_f,amaindir(1),asubdir,nsubdir,&
+              icontrib)
+      endif
 
 !-----------------------------------------------------------------------
 ! Allocate the TR-TXAS parameter array
 !-----------------------------------------------------------------------      
-      itmp=(nstep/dstep)+1
-      maxfunc=nmaindir*itmp*nstates_f
-      allocate(par(maxfunc,4))
-      par=0.0d0
+      if (lbound) then
+         itmp=(nstep/dstep)+1
+         maxfunc=nmaindir*itmp*nstates_f
+         allocate(par(maxfunc,4))
+         par=0.0d0
+      else if (lcont) then
+!         itmp=(nstep/dstep)+1
+!         maxfunc=nmaindir*itmp*int(egrid(3))
+!         allocate(par(maxfunc,2))
+!         par=0.0d0
+      endif
 
 !-----------------------------------------------------------------------
 ! Loop over the main trajectories (main directories), reading the
@@ -197,20 +219,25 @@
 
          ! Read the excitation energies and TDMs for each 
          ! timestep/subdirectory
-         call rddavidson(tdmsq,amaindir(i),asubdir,nsubdir,icontrib,&
-              staindx(i),einit,nstates_f,deltae)
+!         call rddavidson(tdmsq,amaindir(i),asubdir,nsubdir,icontrib,&
+!              staindx(i),einit,nstates_f,deltae)
+
+         ! Determine the cross-sections for each timestep/subdirectory
+         call getxsec(tdmsq,amaindir(i),asubdir,nsubdir,icontrib,&
+              staindx(i),einit,nstates_f,deltae,ip,coeff,ifgindx(i),&
+              step)
          
-         ! Calcuate the contribution to the TR-TXAS from the current
-         ! trajectory
-         call trtxas_currtraj(nsubdir,icontrib,nstates_f,ip,deltae,&
-              tdmsq,coeff,step,ifgindx(i))
+         ! Calcuate the contribution to the bound part of the TR-TXAS 
+         ! from the current trajectory
+         if (lbound) call trtxas_currtraj(nsubdir,icontrib,nstates_f,&
+              ip,deltae,tdmsq,coeff,step,ifgindx(i))
 
       enddo
 
 !-----------------------------------------------------------------------
 ! Calculate and output the total TRPES
 !-----------------------------------------------------------------------
-      call trtxas_total(nmaindir)
+      call trtxas_total
 
       return
 
@@ -346,6 +373,7 @@
       ne=int(egrid(3))
       nt=int(tgrid(3))
       allocate(spec(ne,nt))
+      spec=0.0d0
 
       return
 
@@ -532,36 +560,66 @@
 ! Loop over timesteps/subdirectories and determine whether each one
 ! contributes to the TR-TXAS
 !-----------------------------------------------------------------------
-      do i=1,nsubdir
+      if (lbound) then
+         do i=1,nsubdir
+            ! IP-ADC calculation
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_ip/davstates.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 10
+            
+            ! ADC, Davidson, x
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_x/osc.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 10
+            
+            ! ADC, Davidson, y
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_y/osc.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 10
+            
+            ! ADC, Davidson, z
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_z/osc.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 10
+            
+            ncontrib=ncontrib+1
+            
+            cycle
+            
+10          continue
+            icontrib(i)=0
+         enddo
 
-         ! IP-ADC calculation
-         filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_ip/davstates.dat'
-         inquire(file=filename,exist=exists)
-         if (.not.exists) goto 10
-         
-         ! ADC, Davidson, x
-         filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_x/osc.dat'
-         inquire(file=filename,exist=exists)
-         if (.not.exists) goto 10
+      else if (lcont) then
+         do i=1,nsubdir
+            ! IP-ADC calculation
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_ip/davstates.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 20
+            
+            ! ADC, SI, x
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_si_x/osc.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 20
 
-         ! ADC, Davidson, y
-         filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_y/osc.dat'
-         inquire(file=filename,exist=exists)
-         if (.not.exists) goto 10
-         
-         ! ADC, Davidson, z
-         filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_z/osc.dat'
-         inquire(file=filename,exist=exists)
-         if (.not.exists) goto 10
+            ! ADC, SI, y
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_si_y/osc.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 20
 
-         ncontrib=ncontrib+1
+            ! ADC, SI, z
+            filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_si_z/osc.dat'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) goto 20
 
-         cycle
-
-10       continue
-         icontrib(i)=0
-
-      enddo
+            ncontrib=ncontrib+1
+            
+            cycle
+            
+20          continue
+            icontrib(i)=0            
+         enddo         
+      endif
 
       return
 
@@ -583,7 +641,7 @@
       character(len=250)                     :: filename
 
 !-----------------------------------------------------------------------
-! Allocate the IP array
+! Allocate the IP and E0 array
 !-----------------------------------------------------------------------
       if (allocated(ip)) deallocate(ip)
       allocate(ip(nsubdir))
@@ -616,6 +674,35 @@
       return
 
     end subroutine getip_adc
+
+!#######################################################################
+
+    subroutine getxsec(tdmsq,amaindir,asubdir,nsubdir,icontrib,&
+         staindx,einit,nstates_f,deltae,ip,coeff,ifg,step)
+
+      implicit none
+
+      integer*8                              :: nsubdir,staindx,&
+                                                nstates_f,ifg
+      integer*8, dimension(nsubdir)          :: icontrib,step
+      real*8, dimension(:), allocatable      :: einit
+      real*8, dimension(:,:), allocatable    :: tdmsq,deltae
+      real*8, dimension(nsubdir)             :: ip
+      complex*16, dimension(nsubdir)         :: coeff
+      character(len=120)                     :: amaindir
+      character(len=120), dimension(nsubdir) :: asubdir
+      
+      if (lbound) then
+         call rddavidson(tdmsq,amaindir,asubdir,nsubdir,icontrib,&
+              staindx,einit,nstates_f,deltae)
+      else if (lcont) then
+         call rdstieltjes(amaindir,asubdir,nsubdir,icontrib,ip,&
+              coeff,ifg,step,einit)
+      endif
+
+      return
+
+    end subroutine getxsec
 
 !#######################################################################
 
@@ -662,64 +749,7 @@
 !-----------------------------------------------------------------------
 ! Read in the energy of the initial state
 !-----------------------------------------------------------------------      
-      ! Loop over timesteps/subdirectories
-      do i=1,nsubdir
-         
-         if (icontrib(i).eq.0) cycle
-
-         ! (1) Read the index of the ADC sate chosen by the target
-         !     matching routine
-         k1=index(amaindir,'/')+1
-         k2=len_trim(amaindir)
-         if (index(asubdir(i),'/').eq.0) then
-            k3=len_trim(asubdir(i))
-         else
-            k3=len_trim(asubdir(i))-1
-         endif
-
-         filename=trim(amaindir)//'/'//trim(asubdir(i)) &
-              //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
-              //asubdir(i)(1:k3)//'_dav_x.log'
-
-         open(unit,file=filename,form='formatted',status='old')
-
-5        read(unit,'(a)') string
-         if (index(string,'selected').eq.0) goto 5
-         
-         read(string,'(7x,i2)') adcstate
-         
-         close(unit)
-
-         ! (2) Read the energy of the initial state
-         filename=trim(amaindir)//'/'//trim(asubdir(i)) &
-              //'/adc_dav_x/davstates.dat'
-
-         open(unit,file=filename,form='formatted',status='old')
-
-         if (adcstate.eq.0) then
-            ! Ground state
-10          read(unit,'(a)') string
-            if (index(string,'Ground state MP2 energy:').eq.0) goto 10
-            read(string,'(28x,F14.8)') einit(i)
-         else
-            ! Excited states
-            count=0
-15          read(unit,'(a)') string
-            if (index(string,'Energy:').eq.0) then
-               goto 15
-            else
-               count=count+1
-               if (count.eq.adcstate) then
-                  read(string,'(27x,F14.8)') einit(i)
-               else
-                  goto 15
-               endif
-            endif
-         endif
-         
-         close(unit)
-
-      enddo
+      call get_einit(nsubdir,icontrib,amaindir,asubdir,einit)
 
 !-----------------------------------------------------------------------
 ! Read in the TDM^2 values
@@ -770,7 +800,7 @@
 
 30          read(unit,*,end=35) ener,osc
 
-            call get_state(indx,ener,deltae(i,:),nstates_f)
+            call get_state(indx,ener,deltae(i,:),nstates_f,filename)
 
             tdmsq(i,indx)=tdmsq(i,indx)+(3.0d0/(2.0d0*deltae(i,indx)))*osc
 
@@ -790,7 +820,97 @@
 
 !#######################################################################
 
-    subroutine get_state(indx,ener,deltae,nstates_f)
+    subroutine get_einit(nsubdir,icontrib,amaindir,asubdir,einit)
+
+      implicit none
+
+      integer*8                              :: nsubdir,i,k1,k2,k3,unit,&
+                                                adcstate,count
+      integer*8, dimension(nsubdir)          :: icontrib
+      real*8, dimension(nsubdir)             :: einit
+      character(len=120)                     :: amaindir,string
+      character(len=120), dimension(nsubdir) :: asubdir
+      character(len=250)                     :: filename
+
+      unit=30
+
+      ! Loop over timesteps/subdirectories
+      do i=1,nsubdir
+         
+         if (icontrib(i).eq.0) cycle
+
+         ! (1) Read the index of the ADC sate chosen by the target
+         !     matching routine
+         k1=index(amaindir,'/')+1
+         k2=len_trim(amaindir)
+         if (index(asubdir(i),'/').eq.0) then
+            k3=len_trim(asubdir(i))
+         else
+            k3=len_trim(asubdir(i))-1
+         endif
+
+         if (lbound) then
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
+                 //asubdir(i)(1:k3)//'_dav_x.log'
+         else if (lcont) then
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_si_x/adc_'//amaindir(k1:k2)//'_' &
+                 //asubdir(i)(1:k3)//'_si_x.log'
+         endif
+
+         open(unit,file=filename,form='formatted',status='old')
+
+5        read(unit,'(a)') string
+         if (index(string,'selected').eq.0) goto 5
+         
+         read(string,'(7x,i2)') adcstate
+         
+         close(unit)
+
+         ! (2) Read the energy of the initial state
+         if (lbound) then
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_dav_x/davstates.dat'
+         else if (lcont) then
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_si_x/davstates.dat'
+         endif
+
+         open(unit,file=filename,form='formatted',status='old')
+
+         if (adcstate.eq.0) then
+            ! Ground state
+10          read(unit,'(a)') string
+            if (index(string,'Ground state MP2 energy:').eq.0) goto 10
+            read(string,'(28x,F14.8)') einit(i)
+         else
+            ! Excited states
+            count=0
+15          read(unit,'(a)') string
+            if (index(string,'Energy:').eq.0) then
+               goto 15
+            else
+               count=count+1
+               if (count.eq.adcstate) then
+                  read(string,'(27x,F14.8)') einit(i)
+               else
+                  goto 15
+               endif
+            endif
+         endif
+         
+         close(unit)
+
+      enddo
+
+      return
+
+    end subroutine get_einit
+
+!#######################################################################
+
+    subroutine get_state(indx,ener,deltae,nstates_f,filename)
       
       implicit none
 
@@ -798,6 +918,7 @@
       real*8                       :: ener,ftmp
       real*8, dimension(nstates_f) :: deltae
       real*8, parameter            :: tol=0.0001d0
+      character(len=250)           :: filename
 
       indx=-1
 
@@ -809,14 +930,194 @@
       enddo
 
       if (indx.eq.-1) then
-         write(6,'(/,2x,a,/)') 'Error in subroutine get_state in &
-              trtxas.f90'
+         write(6,'(2(/,2x,a),/)') 'Error in subroutine get_state &
+              in trtxas.f90','File: '//trim(filename)
          stop
       endif
 
       return
 
     end subroutine get_state
+
+!#######################################################################
+
+    subroutine rdstieltjes(amaindir,asubdir,nsubdir,icontrib,ip,coeff,&
+         ifg,step,einit)
+      
+      use expec
+      use sysdef
+      use mcsplinemod
+
+      implicit none
+      
+      integer*8                              :: nsubdir,unit,i,c,k,j,&
+                                                negrid,k1,k2,ifg,m,n
+      integer*8, dimension(nsubdir)          :: icontrib,step
+      real*8, dimension(3,siord-1)           :: si_e,si_f
+      real*8, dimension(:), allocatable      :: xsec
+      real*8, dimension(nsubdir)             :: ip,e0
+      real*8                                 :: csq,t,ipactual
+      real*8, dimension(:), allocatable      :: einit
+      complex*16, dimension(nsubdir)         :: coeff
+      character(len=120), dimension(nsubdir) :: asubdir
+      character(len=120)                     :: amaindir
+      character(len=1), dimension(3)         :: dpllbl
+      character(len=250)                     :: filename
+
+      real*8 :: tsig,tcurr
+
+!-----------------------------------------------------------------------
+! Initialisation of various things
+!-----------------------------------------------------------------------
+      unit=20
+      dpllbl=(/ 'x','y','z' /)
+
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      negrid=int(egrid(3))
+      allocate(xsec(negrid))
+
+      if (allocated(einit)) deallocate(einit)
+      allocate(einit(nsubdir))
+      einit=0.0d0
+
+!-----------------------------------------------------------------------
+! Read the initial state energies for each timestep/subdirectory
+!-----------------------------------------------------------------------
+      call get_einit(nsubdir,icontrib,amaindir,asubdir,einit)
+
+!-----------------------------------------------------------------------
+! Read the ground state energies for each timestep/subdirectory
+!-----------------------------------------------------------------------
+      call get_e0(nsubdir,icontrib,amaindir,asubdir,e0)
+
+!-----------------------------------------------------------------------
+! Read in the discretised Stieltjes cross-sections
+!-----------------------------------------------------------------------
+      ! Loop over timesteps/subdirectories
+      do i=1,nsubdir         
+         
+         ! Cycle if the current timestep doesn't contribute
+         if (icontrib(i).eq.0) cycle
+
+         ! Current time in fs
+         t=(step(i)-1)*dt/41.341375d0
+
+         ! Loop over dipole components
+         do c=1,3
+            ! Open and read the Stieltjes imaging output file
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_si_'//dpllbl(c)//'/xsec_order'            
+            k=len_trim(filename)
+            if (siord.lt.10) then
+               write(filename(k+1:k+3),'(a2,i1)') '00',siord
+            else 
+               write(filename(k+1:k+3),'(a1,i2)') '0',siord
+            endif
+            open(unit,file=filename,form='formatted',status='old')
+            do j=1,siord-1
+               read(unit,*) si_e(c,j),si_f(c,j)
+            enddo
+            close(unit)
+         enddo
+
+         ! Determine the cross-sections at the energy grid points        
+         xsec=0.0d0
+         ipactual=ip(i)-(einit(i)-e0(i))
+         
+
+         call interpolate_stieltjes(si_e,si_f,xsec,negrid,siord,&
+              egrid,ipactual)
+
+         xsec=xsec*(3.0d0/2.0d0)*4.0d0*pi/c_au
+         
+         ! Fill in the par array
+         nfunc=nfunc+1         
+         k1=(nfunc-1)*negrid+1
+         k2=nfunc*negrid
+
+         csq=conjg(coeff(i))*coeff(i)
+         
+         ! (1) Amplitude
+!         par(k1:k2,1)=csq*xsec(1:negrid)/cnorm(ifg,i)
+
+         ! (2) Centre wrt time
+!         par(k1:k2,2)=t
+
+         ! TEST
+         tsig=fwhm_t/2.35482d0
+         do m=1,int(egrid(3))
+            do n=1,int(tgrid(3))
+               tcurr=tgrid(1)+(n-1)*((tgrid(2)-tgrid(1))/tgrid(3))
+               spec(m,n)=spec(m,n)+(1.0d0/real(nifg)) &                    
+                    * csq*xsec(m)/cnorm(ifg,i) &
+                    * exp(-((tcurr-t)**2)/(2.0d0*tsig**2))
+            enddo
+         enddo
+         ! TEST
+
+      enddo
+
+      return
+
+    end subroutine rdstieltjes
+
+!#######################################################################
+
+    subroutine get_e0(nsubdir,icontrib,amaindir,asubdir,e0)
+
+      implicit none
+
+      integer*8                              :: nsubdir,i,k1,k2,k3,unit,&
+                                                adcstate,count
+      integer*8, dimension(nsubdir)          :: icontrib
+      real*8, dimension(nsubdir)             :: e0
+      character(len=120)                     :: amaindir,string
+      character(len=120), dimension(nsubdir) :: asubdir
+      character(len=250)                     :: filename
+
+      unit=30
+
+      ! Loop over timesteps/subdirectories
+      do i=1,nsubdir
+         
+         if (icontrib(i).eq.0) cycle
+
+         ! (1) Read the index of the ADC sate chosen by the target
+         !     matching routine
+         k1=index(amaindir,'/')+1
+         k2=len_trim(amaindir)
+         if (index(asubdir(i),'/').eq.0) then
+            k3=len_trim(asubdir(i))
+         else
+            k3=len_trim(asubdir(i))-1
+         endif
+
+         if (lbound) then
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
+                 //asubdir(i)(1:k3)//'_dav_x.log'
+         else if (lcont) then
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_si_x/adc_'//amaindir(k1:k2)//'_' &
+                 //asubdir(i)(1:k3)//'_si_x.log'
+         endif
+
+         open(unit,file=filename,form='formatted',status='old')
+
+5        read(unit,'(a)') string
+         if (index(string,'MP2 energy:').eq.0) goto 5
+         
+         read(string,'(32x,F15.10)') e0(i)
+         
+         close(unit)
+
+      enddo
+
+      return
+
+    end subroutine get_e0
 
 !#######################################################################
 
@@ -836,9 +1137,6 @@
       real*8                               :: tcurr,t,e,dele,delt,csq,&
                                               lfunc,prefac
       complex*16, dimension(nsubdir)       :: coeff
-      
-      ! Temporary: Gamma = 0.5 ev
-      real*8, parameter :: gamma=13.60569225d0
 
       ! Loop over timesteps
       do n=1,nsubdir
@@ -887,46 +1185,40 @@
 
 !#######################################################################
 
-    subroutine lineshape(lfunc,gamma,e,deltae)
+    subroutine trtxas_total      
 
       implicit none
 
-      real*8 :: lfunc,gamma,e,deltae,numer,denom
+      write(6,'(/,2x,a,/)') 'Constructing the TR-TXAS...'
 
-      numer=0.5d0*gamma
-
-      denom=(0.25d0*gamma**2) + (deltae-e)**2
-
-      lfunc=numer/denom
+      if (lbound) then
+         call trtxas_total_bound
+      else if (lcont) then
+         call trtxas_total_cont
+      endif
 
       return
 
-    end subroutine lineshape
+    end subroutine trtxas_total
 
 !#######################################################################
 
-    subroutine trtxas_total(nmaindir)
+    subroutine trtxas_total_bound
 
       use expec
       use sysdef
 
       implicit none
-
-      integer*8 :: nmaindir,iout,i,j,k
-      real*8    :: dele,delt,e,t,func,prefac,musq,shape,deif,tcent
-
-      ! Temporary: (i)  Gamma = 0.5 ev
-      !            (ii) Pump-probe cross-corr. = 50 fs
-      real*8, parameter :: gamma=0.5d0/eh2ev
-      real*8, parameter :: tsig=50.0d0/2.35482d0
-
-      write(6,'(/,2x,a,/)') 'Constructing the TR-TXAS...'
+      
+      integer*8 :: iout,i,j,k
+      real*8    :: dele,delt,e,t,func,prefac,musq,shape,deif,tcent,&
+                   tsig
 
 !-----------------------------------------------------------------------
 ! Set the grid spacings
 !-----------------------------------------------------------------------
       dele=(egrid(2)-egrid(1))/egrid(3)
-      delt=(tgrid(2)-tgrid(1))/tgrid(3) 
+      delt=(tgrid(2)-tgrid(1))/tgrid(3)
 
 !-----------------------------------------------------------------------
 ! Open the TR-TXAS output file
@@ -938,9 +1230,9 @@
 ! Calculate and output the TR-TXAS
 !-----------------------------------------------------------------------
       ! Loop over grid points
-      do i=1,int(egrid(3))+1
+      do i=1,int(egrid(3))
          write(iout,*)
-         do j=1,int(tgrid(3))+1
+         do j=1,int(tgrid(3))
 
             e=egrid(1)+(i-1)*dele
             t=tgrid(1)+(j-1)*delt
@@ -965,6 +1257,9 @@
                ! Lorentzian lineshape
                call lineshape(shape,gamma,e,deif)
 
+               ! FWHM in the time domain
+               tsig=fwhm_t/2.35482d0
+
                ! Function value
                func=func+(1.0d0/real(nifg))*prefac*e*musq*shape &
                     * exp(-((t-tcent)**2)/(2.0d0*tsig**2))
@@ -978,14 +1273,67 @@
          enddo
       enddo
 
-!-----------------------------------------------------------------------
-! Close the TR-TXAS output file
-!-----------------------------------------------------------------------
-      close(iout)
+      return
+
+    end subroutine trtxas_total_bound
+
+!#######################################################################
+
+    subroutine lineshape(lfunc,gamma,e,deltae)
+
+      implicit none
+
+      real*8 :: lfunc,gamma,e,deltae,numer,denom
+
+      numer=0.5d0*gamma
+
+      denom=(0.25d0*gamma**2) + (deltae-e)**2
+
+      lfunc=numer/denom
 
       return
 
-    end subroutine trtxas_total
+    end subroutine lineshape
+
+!#######################################################################
+
+    subroutine trtxas_total_cont
+
+      use expec
+      use sysdef
+
+      implicit none
+
+      integer*8 :: iout,i,j,k,count,negrid,n
+      real*8    :: dele,delt,e,t,func,tsig,prefac,tcent
+
+!-----------------------------------------------------------------------
+! Set the grid spacings
+!-----------------------------------------------------------------------
+      dele=(egrid(2)-egrid(1))/egrid(3)
+      delt=(tgrid(2)-tgrid(1))/tgrid(3) 
+
+!-----------------------------------------------------------------------
+! Open the TR-TXAS output file
+!-----------------------------------------------------------------------
+      iout=20
+      open(iout,file='trtxas.dat',form='formatted',status='unknown')
+
+!-----------------------------------------------------------------------
+! Calculate and output the TR-TXAS
+!-----------------------------------------------------------------------
+      do i=1,int(egrid(3))
+         write(iout,*)
+         do j=1,int(tgrid(3))
+            e=egrid(1)+(i-1)*dele
+            t=tgrid(1)+(j-1)*delt
+            write(iout,*) e*eh2ev,t,spec(i,j)            
+         enddo
+      enddo
+
+      return
+
+    end subroutine trtxas_total_cont
 
 !#######################################################################
 

@@ -25,6 +25,7 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/adcprep.f90 \
      $(MODPATH)/cirmsd.f90 \
      $(MODPATH)/trpes.f90 \
+     $(MODPATH)/mcspline.f90 \
      $(MODPATH)/trtxas.f90 
 
 ########################################################################
