@@ -1,0 +1,10 @@
+#!/bin/bash
+
+file1=$1
+file2=$2
+
+awk '{print $3}' $file2 >tmp.tmp
+
+paste $file1 tmp.tmp >combined.dat
+
+rm tmp.tmp
