@@ -246,6 +246,7 @@
       use sysdef
       use trajdef
       use dysonmod
+      use expec, only: ldummy
 
       implicit none
 
@@ -258,20 +259,12 @@
 !-----------------------------------------------------------------------
 ! Determine the current Cartesian coordinates
 !-----------------------------------------------------------------------
-! OLD/WRONG: only allows for the parent coordinates to be used if the 
-!            current trajectory has yet to spawn
-!
-!      spawnstep=traj(ifg)%tspawn(itraj)
-!      if (istep.lt.spawnstep) then
-!         k=traj(ifg)%ispawn(itraj)
-!         x=traj(ifg)%r(k,istep,:)
-!      else
-!         x=traj(ifg)%r(itraj,istep,:)
-!      endif
-
-! NEW/CORRECT: take the coordinates from the closest populated ancestor
-!              in the case that the current trajectory has yet to spawn
       call currgeom(x,ifg,itraj,istep)
+
+!-----------------------------------------------------------------------
+! Determing the centre of mass if required
+!-----------------------------------------------------------------------
+      if (ldummy) call getcom(x,xcom)
 
 !-----------------------------------------------------------------------
 ! Columbus, neutral
@@ -279,7 +272,8 @@
       unit=20
       ageom=trim(asub)//'/'//trim(acol_n)//'/geom'      
       open(unit,file=ageom,form='formatted',status='unknown')
-
+      if (ldummy) write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') 'X',&
+           0.0d0,(xcom(m), m=1,3),0.0d0
       do i=1,natm
          write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') atlbl(i),atnum(i),&
               (x(m), m=i*3-2,i*3),atmass(i)
@@ -292,6 +286,8 @@
 !-----------------------------------------------------------------------
       ageom=trim(asub)//'/'//trim(acol_c)//'/geom'      
       open(unit,file=ageom,form='formatted',status='unknown')      
+      if (ldummy) write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') 'X',&
+           0.0d0,(xcom(m), m=1,3),0.0d0
       do i=1,natm
          write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') atlbl(i),atnum(i),&
               (x(m), m=i*3-2,i*3),atmass(i)
@@ -303,6 +299,8 @@
 !-----------------------------------------------------------------------
       ageom=trim(asub)//'/'//trim(aprep_n)//'/geom'      
       open(unit,file=ageom,form='formatted',status='unknown')      
+      if (ldummy) write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') 'X',&
+           0.0d0,(xcom(m), m=1,3),0.0d0
       do i=1,natm
          write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') atlbl(i),atnum(i),&
               (x(m), m=i*3-2,i*3),atmass(i)
@@ -314,6 +312,8 @@
 !-----------------------------------------------------------------------
       ageom=trim(asub)//'/'//trim(aprep_c)//'/geom'      
       open(unit,file=ageom,form='formatted',status='unknown')      
+      if (ldummy) write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') 'X',&
+           0.0d0,(xcom(m), m=1,3),0.0d0
       do i=1,natm
          write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') atlbl(i),atnum(i),&
               (x(m), m=i*3-2,i*3),atmass(i)
