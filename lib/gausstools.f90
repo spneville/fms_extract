@@ -34,6 +34,38 @@
     end function ispop
 
 !#######################################################################
+! ispop_staproj: returns .true. if the population of a trajectory
+!                projected onto a given state at a given timestep is
+!                above a threshold value (10^-5)
+!#######################################################################
+    
+    function ispop_staproj(itraj,istep,ista) result(ispop)
+
+      use trajdef
+
+      implicit none
+
+      integer*8         :: itraj,istep,ista,j,ntraj,s
+      real*8, parameter :: tol=10d-5
+      complex*16        :: coe,coe2
+      logical(kind=4)   :: ispop
+
+      ntraj=traj(itraj)%ntraj
+
+      ispop=.false.
+      do j=1,ntraj
+         s=traj(itraj)%ista(j)
+         if (s.ne.ista) cycle
+         coe=traj(itraj)%coe(j,istep)
+         coe2=conjg(coe)*coe
+         if (real(coe2).gt.tol) ispop=.true.
+      enddo
+
+      return
+
+    end function ispop_staproj
+
+!#######################################################################
 ! psixpsi: calculates the value of |Psi(x)|^2 for the Cartesian
 !          coordinates x held in xcoo 
 !#######################################################################

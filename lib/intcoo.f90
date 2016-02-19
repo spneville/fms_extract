@@ -195,14 +195,11 @@
       use expec
       use sysdef
       
-      implicit none
-
       integer*8                 :: i,k1,k2,k3,k4,k5,k6,k7,k8
       real*8, dimension(natm*3) :: xcoo
-      real*8                    :: intcoo,pi,dot,&
-                                   len1,len2,len3,len4
+      real*8                    :: intcoo,pi,dot,len1,len2,len3,len4
       real*8, dimension(3)      :: vec1,vec2,vec3,vec4,cross1,cross2
-
+      
       pi=4.0d0*datan(1.0d0)
 
       k1=iatm(1)
@@ -242,12 +239,8 @@
       cross2=cross_product(vec3,vec4)
 
       dot=dot_product(cross1,cross2)
-
       intcoo=acos(dot)
-
       intcoo=intcoo*180.0d0/pi
-
-      if (intcoo.gt.90.0d0) intcoo=180.0d0-intcoo
 
       return
 

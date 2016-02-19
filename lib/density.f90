@@ -65,11 +65,20 @@
 
                ! Make sure that we have no contributions from 
                ! IFGs that are dead
-               lpop=ispop(i,n)
+               if (dstate.eq.0) then
+                  lpop=ispop(i,n)
+               else
+                  lpop=ispop_staproj(i,n,dstate)
+               endif                  
                if (.not.lpop) cycle
                
                ! Select a live trajectory (indexed by ibas)
-               call select_traj(ibas,i,n)
+               if (dstate.eq.0) then
+                  call select_traj(ibas,i,n)
+               else
+                  call select_traj_staproj(ibas,i,n,dstate,lpop)
+                  if (.not.lpop) cycle
+               endif
                
                ! Using the selected trajectory, sample Cartesian
                ! coordinates using the corresponding Gaussian
@@ -89,7 +98,8 @@
                lbound=isbound(icoo)
                if (.not.lbound) then
                   if (count.gt.1000) then
-                     goto 999
+!                     goto 999
+                     cycle
                   else
                      goto 10
                   endif
@@ -237,6 +247,66 @@
       return
 
     end subroutine select_traj
+
+!#######################################################################
+! select_traj_staproj: selects a trajectory index j according to the 
+!                      distribution f(j)=|C_j|^2 subject to the
+!                      constraint that the trajectory has a state index
+!                      ista
+!#######################################################################
+
+    subroutine select_traj_staproj(ibas,itraj,istep,ista,lpop)
+
+      use trajdef
+
+      implicit none
+
+      integer*8       :: ibas,itraj,istep,j,ntraj,ista,k,s
+      real*8          :: randm,pop
+      complex*16      :: coe
+      logical(kind=4) :: lpop
+
+      ntraj=traj(itraj)%ntraj
+
+      ! Check to see whether the current IFG has population in
+      ! the ista'th electronic state
+      lpop=.false.
+      do k=1,ntraj
+         s=traj(itraj)%ista(k)
+         if (s.eq.ista) then
+            lpop=.true.
+            exit
+         endif
+      enddo
+      if (.not.lpop) return
+
+      ibas=0
+10    continue
+
+      ! Randomly select a trajectory in the electronic state of
+      ! interest
+      call random_number(randm)
+      j=ceiling(ntraj*randm)
+      s=traj(itraj)%ista(j)
+      if (s.ne.ista) goto 10
+
+      ! Choose the selected trajectory if
+      ! random no. .le. population of the trajectory
+      call random_number(randm)
+      coe=traj(itraj)%coe(j,istep)
+      pop=real(conjg(coe)*coe)
+      if (randm.le.real(pop)) then
+         ibas=j
+         goto 20
+      endif
+      
+      if (ibas.eq.0) goto 10
+
+20    continue
+
+      return
+
+    end subroutine select_traj_staproj
 
 !#######################################################################
 ! sample_cart: For a given trajectory at a given timestep, samples the

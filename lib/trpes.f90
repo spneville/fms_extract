@@ -580,7 +580,7 @@
             !
             ! (1) Coefficient
             csq=conjg(coeff(n))*coeff(n)
-            gausspar(ngauss,1)=csq*dnorm(n,k)/nifg
+            gausspar(ngauss,1)=csq*dnorm(n,k)**2/nifg
 
             ! (2) Width parameter, energy domain
             gausspar(ngauss,2)=fwhm_e/2.35482d0

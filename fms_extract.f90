@@ -89,6 +89,7 @@
       ioutgeom=0
       nmc=20000
       dstep=20
+      dstate=0
       vecfile=''
       ainp=''
       adirfile=''
@@ -289,6 +290,14 @@
             if (keyword(i+1).eq.'=') then
                i=i+2
                read(keyword(i),*) dstep
+            else
+               goto 100
+            endif
+
+         else if (keyword(i).eq.'dstate') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) dstate
             else
                goto 100
             endif

@@ -98,7 +98,7 @@
     integer*8                              :: ijob,ioutgeom,nionize,&
                                               ngauss
     integer*8, dimension(10)               :: iatm
-    integer*8                              :: ityp,nmc,dstep
+    integer*8                              :: ityp,nmc,dstep,dstate
     integer*8, dimension(:,:), allocatable :: iionize
     real*8, dimension(:), allocatable      :: cartvec,refgeom
     real*8, dimension(4)                   :: dgrid

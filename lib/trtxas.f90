@@ -1002,11 +1002,10 @@
          if (icontrib(i).eq.0) cycle
 
          ! Current time in fs
-         t=(step(i)-1)*dt/41.341375d0
+         tcurr=(step(i)-1)*dt/41.341375d0
 
-         ! Loop over dipole components
+         ! Read the Stieltjes imaging cross-sections
          do c=1,3
-            ! Open and read the Stieltjes imaging output file
             filename=trim(amaindir)//'/'//trim(asubdir(i)) &
                  //'/adc_si_'//dpllbl(c)//'/xsec_order'            
             k=len_trim(filename)
@@ -1022,17 +1021,16 @@
             close(unit)
          enddo
 
-         ! Determine the cross-sections at the energy grid points        
+         ! Interpolate to determine the cross-sections at the energy 
+         ! grid points
          xsec=0.0d0
          ipactual=ip(i)-(einit(i)-e0(i))
-         
-
          call interpolate_stieltjes(si_e,si_f,xsec,negrid,siord,&
               egrid,ipactual)
 
          xsec=xsec*(3.0d0/2.0d0)*4.0d0*pi/c_au
-         
-         ! Fill in the par array
+
+         ! Fill in the spectrum
          nfunc=nfunc+1         
          k1=(nfunc-1)*negrid+1
          k2=nfunc*negrid
@@ -1049,10 +1047,10 @@
          tsig=fwhm_t/2.35482d0
          do m=1,int(egrid(3))
             do n=1,int(tgrid(3))
-               tcurr=tgrid(1)+(n-1)*((tgrid(2)-tgrid(1))/tgrid(3))
-               spec(m,n)=spec(m,n)+(1.0d0/real(nifg)) &                    
+               t=tgrid(1)+(n-1)*((tgrid(2)-tgrid(1))/tgrid(3))
+               spec(m,n)=spec(m,n)+(1.0d0/real(nifg)) &
                     * csq*xsec(m)/cnorm(ifg,i) &
-                    * exp(-((tcurr-t)**2)/(2.0d0*tsig**2))
+                    * exp(-((t-tcurr)**2)/(2.0d0*tsig**2))
             enddo
          enddo
          ! TEST
