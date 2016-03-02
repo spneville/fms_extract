@@ -5,6 +5,7 @@
     integer*8                                     :: nmaindir,nifg,&
                                                      ne,nt,maxfunc,nfunc
     integer*8, dimension(:), allocatable          :: staindx,ifgindx
+    integer*8                                     :: failunit,okunit
     real*8, dimension(:,:), allocatable           :: spec,par,cnorm
     real*8, parameter                             :: eh2ev=27.2113845d0
     real*8, parameter                             :: c_au=137.03604d0
@@ -171,7 +172,8 @@
 !-----------------------------------------------------------------------
       if (lbound) then
          call getsubdirs(amaindir(1),nsubdir,asubdir,step)
-         call getcontrib(ncontrib,icontrib,amaindir(1),asubdir,nsubdir)
+         call getcontrib(ncontrib,icontrib,amaindir(1),asubdir,&
+              nsubdir,0)
          call get_nstates_f(nstates_f,amaindir(1),asubdir,nsubdir,&
               icontrib)
       endif
@@ -208,7 +210,8 @@
 
          ! Determine which timesteps/subdirectories contribute to the
          ! spectrum
-         call getcontrib(ncontrib,icontrib,amaindir(i),asubdir,nsubdir)
+         call getcontrib(ncontrib,icontrib,amaindir(i),asubdir,&
+              nsubdir,0)
 
          ! Cycle if no timesteps/subdirectories contribute to the
          ! spectrum
@@ -385,6 +388,7 @@
 
       use sysdef 
       use expec
+      use iomod
 
       implicit none
 
@@ -395,6 +399,13 @@
       real*8                                        :: ftmp
       complex*16, dimension(:), allocatable         :: coeff
       character(len=120), dimension(:), allocatable :: asubdir
+
+      ! Open the files containing the geometries at which the
+      ! target matching code failed/succeeded
+      failunit=55
+      okunit=56
+      open(failunit,file='targfail.xyz',form='formatted',status='unknown')
+      open(okunit,file='targok.xyz',form='formatted',status='unknown')
 
       itmp=nstep/dstep+1
       allocate(cnorm(nifg,itmp))
@@ -415,7 +426,7 @@
 
          ! Determine which timesteps/subdirectories contribute to the
          ! spectrum
-         call getcontrib(ncontrib,icontrib,amaindir(n),asubdir,nsubdir)
+         call getcontrib(ncontrib,icontrib,amaindir(n),asubdir,nsubdir,1)
          
          ! Add the current contribution to the cnorm array
          do k=1,nsubdir            
@@ -430,11 +441,8 @@
 
       cnorm=sqrt(cnorm)
 
-!      do n=1,nifg
-!         do k=1,50
-!            print*,cnorm(n,k)
-!         enddo
-!      enddo
+      close(failunit)
+      close(okunit)
 
       return
 
@@ -538,15 +546,18 @@
 
 !#######################################################################
 
-    subroutine getcontrib(ncontrib,icontrib,amaindir,asubdir,nsubdir)
+    subroutine getcontrib(ncontrib,icontrib,amaindir,asubdir,nsubdir,&
+         ifailchk)
 
       implicit none
 
       integer*8                              :: ncontrib,nsubdir,i
+      integer                                :: ifailchk
       integer*8, dimension(:), allocatable   :: icontrib
       character(len=120)                     :: amaindir
       character(len=120), dimension(nsubdir) :: asubdir
       character(len=250)                     :: filename
+      character(len=2)                       :: afail
       logical                                :: exists
 
 !-----------------------------------------------------------------------
@@ -565,29 +576,50 @@
             ! IP-ADC calculation
             filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_ip/davstates.dat'
             inquire(file=filename,exist=exists)
-            if (.not.exists) goto 10
-            
+            if (.not.exists) then
+               afail='ip'
+               goto 10
+            endif
+
             ! ADC, Davidson, x
             filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_x/osc.dat'
             inquire(file=filename,exist=exists)
-            if (.not.exists) goto 10
+            if (.not.exists) then
+               afail='x'
+               goto 10
+            endif
             
             ! ADC, Davidson, y
             filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_y/osc.dat'
             inquire(file=filename,exist=exists)
-            if (.not.exists) goto 10
+            if (.not.exists) then
+               afail='y'
+               goto 10
+            endif
             
             ! ADC, Davidson, z
             filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_dav_z/osc.dat'
             inquire(file=filename,exist=exists)
-            if (.not.exists) goto 10
+            if (.not.exists) then
+               afail='z'
+               goto 10
+            endif
             
             ncontrib=ncontrib+1
             
+            ! Write the successful geometries to file
+            if (ifailchk.eq.1) call okgeom(amaindir,asubdir(i))
+
             cycle
             
 10          continue
             icontrib(i)=0
+
+            ! If the calculation didn't complete due to the failure of
+            ! the target matching code, then write the geometry to file
+            if (ifailchk.eq.1.and.afail.ne.'ip') &
+                 call failgeom(amaindir,asubdir(i),afail)
+            
          enddo
 
       else if (lcont) then
@@ -624,6 +656,129 @@
       return
 
     end subroutine getcontrib
+
+!#######################################################################
+
+    subroutine failgeom(amaindir,asubdir,atype)
+
+      use sysdef
+      use iomod
+
+      implicit none
+
+      integer*8                         :: k1,k2,k3,iadc,i,j
+      real*8, dimension(natm*3)         :: xcoo
+      character(len=2), dimension(natm) :: aatm
+      character(len=2)                  :: atype
+      character(len=120)                :: amaindir
+      character(len=120)                :: asubdir,string
+      character(len=250)                :: filename
+      logical(kind=4)                   :: exists,failed
+
+      k1=index(amaindir,'/')+1
+      k2=len_trim(amaindir)
+      if (index(asubdir,'/').eq.0) then
+         k3=len_trim(asubdir)
+      else
+         k3=len_trim(asubdir)-1
+      endif
+            
+      filename=trim(amaindir)//'/'//trim(asubdir) &
+           //'/adc_dav_'//trim(atype)//'/adc_'//amaindir(k1:k2)//'_' &
+           //asubdir(1:k3)//'_dav_'//trim(atype)//'.log'
+
+      inquire(file=filename,exist=exists)
+      
+      if (exists) then
+         iadc=323
+         open(iadc,file=filename,form='formatted',status='old')
+         
+         ! Read the Cartesian coordinates
+5        read(iadc,'(a)',end=999) string
+         if (index(string,'Angstrom').eq.0) goto 5
+         do i=1,3
+            read(iadc,*)
+         enddo
+         do i=1,natm
+            read(iadc,*) aatm(i),(xcoo(j),j=i*3-2,i*3)
+         enddo
+
+         ! Check whether the calculation failed due to the target
+         ! matching going wrong, and if so write the geometry to file
+         failed=.true.
+10       read(iadc,'(a)',end=888) string
+         if (index(string,'State').ne.0.and.index(string,'(selected)').ne.0) then
+            failed=.false.
+         else
+            goto 10
+         endif
+888      continue
+         if (failed) then
+            write(failunit,'(i2,/)') natm
+            do i=1,natm
+               write(failunit,'(a2,3(2x,F10.7))') aatm(i),(xcoo(j),j=i*3-2,i*3)
+            enddo
+         endif
+
+999      continue
+         close(iadc)
+
+      endif
+
+      return
+
+    end subroutine failgeom
+
+!#######################################################################
+
+    subroutine okgeom(amaindir,asubdir)
+
+      use sysdef
+      use iomod
+
+      implicit none
+      
+      integer*8                         :: k1,k2,k3,iadc,i,j
+      real*8, dimension(natm*3)         :: xcoo
+      character(len=2), dimension(natm) :: aatm
+      character(len=120)                :: amaindir
+      character(len=120)                :: asubdir,string
+      character(len=250)                :: filename
+
+      k1=index(amaindir,'/')+1
+      k2=len_trim(amaindir)
+      if (index(asubdir,'/').eq.0) then
+         k3=len_trim(asubdir)
+      else
+         k3=len_trim(asubdir)-1
+      endif
+
+      filename=trim(amaindir)//'/'//trim(asubdir) &
+           //'/adc_dav_x'//'/adc_'//amaindir(k1:k2)//'_' &
+           //asubdir(1:k3)//'_dav_x'//'.log'
+      
+      iadc=323
+      open(iadc,file=filename,form='formatted',status='old')
+      
+5     read(iadc,'(a)') string
+      if (index(string,'Angstrom').eq.0) goto 5
+      do i=1,3
+         read(iadc,*)
+      enddo
+      do i=1,natm
+         read(iadc,*) aatm(i),(xcoo(j),j=i*3-2,i*3)
+      enddo
+
+      write(okunit,'(i2,/)') natm
+      do i=1,natm
+         write(okunit,'(a2,3(2x,F10.7))') aatm(i),(xcoo(j),j=i*3-2,i*3)
+      enddo
+
+      close(iadc)
+      
+      return
+
+    end subroutine okgeom
 
 !#######################################################################
 

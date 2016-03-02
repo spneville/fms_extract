@@ -59,7 +59,7 @@
 
                   ! Contributions arise only if both coefficients are
                   ! non-zero
-                  if (cj.ne.(0.0d0,0.0d0).and.cj.ne.(0.0d0,0.0d0)) then
+                  if (cj.ne.(0.0d0,0.0d0).and.ck.ne.(0.0d0,0.0d0)) then
 
                      ! If the trajectory state indices are equal, then
                      ! calculate the contribution to the corresponding
