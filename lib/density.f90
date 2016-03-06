@@ -202,7 +202,7 @@
       implicit none
 
       integer                     :: unit,i,j,k
-      real*8                      :: norm
+      real*8                      :: norm,dp
       real*8, dimension(2,natm*3) :: grad
       character(len=2)            :: atmp
       
@@ -234,11 +234,7 @@
       do i=1,natm
          read(unit,*) (branchvec(1,j),j=i*3-2,i*3)
       enddo
-      close(unit)
-
-      ! Normalise
-      norm=sqrt(dot_product(branchvec(1,:),branchvec(1,:)))
-      branchvec(1,:)=branchvec(1,:)/norm
+      close(unit)      
 
 !-----------------------------------------------------------------------
 ! Gradient difference vector
@@ -254,9 +250,19 @@
       enddo
       branchvec(2,:)=grad(1,:)-grad(2,:)
 
-      norm=sqrt(dot_product(branchvec(2,:),branchvec(2,:)))
-      branchvec(2,:)=branchvec(2,:)/norm
+!-----------------------------------------------------------------------
+! Orthonormalisation
+!-----------------------------------------------------------------------
+      dp=dot_product(branchvec(2,:),branchvec(1,:))
+      branchvec(2,:)=branchvec(2,:)-dp*branchvec(1,:)/dot_product(branchvec(1,:),branchvec(1,:))
+      dp=dot_product(branchvec(2,:),branchvec(1,:))
+      branchvec(2,:)=branchvec(2,:)-dp*branchvec(1,:)/dot_product(branchvec(1,:),branchvec(1,:))
       
+      do k=1,2
+         norm=sqrt(dot_product(branchvec(k,:),branchvec(k,:)))
+         branchvec(k,:)=branchvec(k,:)/norm
+      enddo
+
       return
       
     end subroutine rdseamfiles
