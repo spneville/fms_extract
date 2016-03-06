@@ -13,6 +13,7 @@
 !      3 <-> dihedral
 !      4 <-> twisting angle
 !     -1 <-> Cartesian vector
+!     -2 <-> Distance from a CI projected onto the branching space
 !#######################################################################
 
     function x2int(xcoo) result(intcoo)
@@ -39,6 +40,9 @@
       case(4) ! Twisting angle
          call calc_twist(xcoo,intcoo)
 
+      case(-2) ! Distance from a CI projected onto the branching space
+         call calc_dist_seam(xcoo,intcoo)
+         
       end select
 
       return
@@ -486,6 +490,93 @@
    
     end function finddet2
 
+!#######################################################################
+
+    subroutine calc_dist_seam(xcoo,intcoo)
+
+      use expec
+      use sysdef
+      use kabschmod
+      use permutemod
+      
+      real*8, dimension(natm*3) :: xcoo,xcurr,xmin,rotx,dvec
+      real*8                    :: intcoo
+
+      ! TEMPORARY
+      integer, dimension(4)                :: hindx
+      integer, dimension(:,:), allocatable :: P
+      integer                              :: n,nperm,i,j,k
+      real*8                               :: rmsd,minrmsd
+      
+!-----------------------------------------------------------------------
+! Put the input geometry into maximum coincidence with the CI geometry
+! subject to any user requested permutations of identical nuclei
+!
+! FOR NOW, THIS IS HARD-WIRED FOR THE CASE OF THE PERMUTATION OF THE
+! H-ATOMS IN ETHYLENE
+!-----------------------------------------------------------------------
+      hindx=(/3,4,5,6/)
+
+      n=4
+      nperm=factorial(n)
+
+      allocate(P(nperm,n))
+      call permutate(hindx,P)
+
+      minrmsd=1000000.0d0
+      do i=1,nperm
+         hindx=P(i,:)
+         xcurr(1:6)=xcoo(1:6)
+         do j=1,4
+            k=2+j
+            xcurr(k*3-2:k*3)=xcoo(hindx(j)*3-2:hindx(j)*3)
+         enddo
+         call kabsch(cigeom,xcurr,rmsd,rotx)
+         if (rmsd.lt.minrmsd) then
+            minrmsd=rmsd
+            xmin=rotx
+         endif
+      enddo
+
+!      print*
+!      print*,natm
+!      print*,
+!      do i=1,natm
+!         print*,atlbl(i),(cigeom(j)*0.529177249d0,j=i*3-2,i*3)
+!      enddo
+!      print*,natm
+!      print*,minrmsd
+!      do i=1,natm
+!         print*,atlbl(i),(xmin(j)*0.529177249d0,j=i*3-2,i*3)
+!      enddo
+
+      
+      dvec=cigeom-xmin
+      dvec=matmul(branchproj,dvec)
+
+      intcoo=sqrt(dot_product(dvec,dvec))
+      
+      return
+      
+    end subroutine calc_dist_seam
+
+!#######################################################################
+
+    function factorial(num) result(fac)
+
+      implicit none
+
+      integer :: num,fac,i
+
+      fac=1
+      do i=2,num
+         fac=fac*i
+      enddo
+      
+      return
+      
+    end function factorial
+      
 !#######################################################################
 
   end module intcoo

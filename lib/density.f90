@@ -33,6 +33,16 @@
       call densinit
 
 !-----------------------------------------------------------------------
+! If the coordinate type is the distance from a CI seam, then read
+! the g-vector, h-vector and CI geometry files and set up the projector
+! onto the branching space
+!-----------------------------------------------------------------------
+      if (ityp.eq.-2) then
+         call rdseamfiles
+         call calc_projector
+      endif
+         
+!-----------------------------------------------------------------------
 ! Open output file
 !-----------------------------------------------------------------------
       iout=30
@@ -179,6 +189,111 @@
 
     end subroutine densinit
 
+!#######################################################################
+! rdseamfiles: reading of the NACT vector file, the gradient vector
+!              files and the CI geometry files    
+!#######################################################################
+
+    subroutine rdseamfiles
+
+      use sysdef
+      use expec
+      
+      implicit none
+
+      integer                     :: unit,i,j,k
+      real*8                      :: norm
+      real*8, dimension(2,natm*3) :: grad
+      character(len=2)            :: atmp
+      
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      allocate(cigeom(3*natm))
+      allocate(branchvec(2,3*natm))
+
+!-----------------------------------------------------------------------
+! CI geometry
+!-----------------------------------------------------------------------
+      unit=335
+      open(unit,file=cifile,form='formatted',status='old')
+      read(unit,*)
+      read(unit,*)
+      do i=1,natm
+         read(unit,*) atmp,(cigeom(j),j=i*3-2,i*3)
+      enddo
+      close(unit)
+
+      ! Convert to a.u.
+      cigeom=cigeom/0.529177249d0
+
+!-----------------------------------------------------------------------
+! NACT vector
+!-----------------------------------------------------------------------
+      open(unit,file=hfile,form='formatted',status='old')
+      do i=1,natm
+         read(unit,*) (branchvec(1,j),j=i*3-2,i*3)
+      enddo
+      close(unit)
+
+      ! Normalise
+      norm=sqrt(dot_product(branchvec(1,:),branchvec(1,:)))
+      branchvec(1,:)=branchvec(1,:)/norm
+
+!-----------------------------------------------------------------------
+! Gradient difference vector
+!-----------------------------------------------------------------------
+      do k=1,2
+         open(unit,file=gfile(k),form='formatted',status='old')
+         do i=1,natm
+            read(unit,*) (grad(k,j),j=i*3-2,i*3)
+         enddo
+         close(unit)
+         norm=sqrt(dot_product(grad(k,:),grad(k,:)))
+         grad(k,:)=grad(k,:)/norm         
+      enddo
+      branchvec(2,:)=grad(1,:)-grad(2,:)
+
+      norm=sqrt(dot_product(branchvec(2,:),branchvec(2,:)))
+      branchvec(2,:)=branchvec(2,:)/norm
+      
+      return
+      
+    end subroutine rdseamfiles
+
+!#######################################################################
+
+    subroutine calc_projector
+
+      use sysdef
+      use expec
+      
+      implicit none
+
+      integer :: i,j,k
+      
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      allocate(branchproj(3*natm,3*natm))
+
+!-----------------------------------------------------------------------
+! Set up the projector onto the branching space
+!-----------------------------------------------------------------------
+      branchproj=0.0d0
+      do k=1,2
+         do i=1,3*natm
+            do j=1,3*natm
+               branchproj(i,j)=branchproj(i,j)+&
+                    branchvec(k,i)*branchvec(k,j)
+            enddo
+         enddo
+      enddo
+         
+      return
+      
+    end subroutine calc_projector
+      
 !#######################################################################
 ! getcent: determines the centres of the partitions of the internal
 !          coordinate value interval

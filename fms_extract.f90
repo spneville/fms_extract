@@ -132,6 +132,9 @@
       
       siord=0
 
+      hfile=''
+      gfile=''
+      
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -209,12 +212,7 @@
 
          else if (keyword(i).eq.'internal') then
             if (keyword(i+1).eq.'=') then
-               i=i+2
-               if (keyword(i+1).ne.',') then
-                  msg='Atom numbers for internal coordinate type '&
-                       &//trim(keyword(i))//' not given'
-                  call errcntrl(msg)
-               endif
+               i=i+2               
                if (keyword(i).eq.'length') then
                   ityp=1
                   ndef=2
@@ -226,9 +224,11 @@
                   ndef=4
                else if (keyword(i).eq.'twist') then
                   ityp=4
-                  ndef=8
+                  ndef=8               
                else if (keyword(i).eq.'cartvec') then
                   ityp=-1
+               else if (keyword(i).eq.'seam') then
+                  ityp=-2
                else
                   msg='Unknown internal coordinate type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -240,6 +240,11 @@
             ! the atoms entering into the definition of the given
             ! internal coordinate
             if (ityp.gt.0) then
+               if (keyword(i+1).ne.',') then
+                  msg='Atom numbers for internal coordinate type '&
+                       &//trim(keyword(i))//' not given'
+                  call errcntrl(msg)
+               endif               
                do j=1,ndef
                   i=i+2
                   read(keyword(i),*) iatm(j)
@@ -553,6 +558,30 @@
                goto 100
             endif
 
+         else if (keyword(i).eq.'hfile') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),'(a)') hfile
+            else
+               goto 100
+            endif
+
+         else if (keyword(i).eq.'gfile') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),'(a)') gfile(1)
+               if (keyword(i+1).eq.',') then
+                  i=i+2
+                  read(keyword(i),'(a)') gfile(2)
+               else
+                  msg='Only one gradient file has been given with &
+                       the gfile keyword'
+                  call errcntrl(msg)
+               endif               
+            else
+               goto 100
+            endif 
+            
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
@@ -591,11 +620,27 @@
          call errcntrl(msg)
       endif
 
-      if (ijob.eq.3.and.ityp.eq.0) then
-         msg='Internal coordinate definition not given'
-         call errcntrl(msg)
+      if (ijob.eq.3) then
+         if (ityp.eq.0) then
+            msg='Internal coordinate definition not given'
+            call errcntrl(msg)
+         endif
+         if (ityp.eq.-2) then
+            if (hfile.eq.'') then
+               msg='The NACT vector file has not been given'
+               call errcntrl(msg)
+            endif
+            if (gfile(1).eq.''.or.gfile(2).eq.'') then
+               msg='The gradient vector files have not been given'
+               call errcntrl(msg)
+            endif
+            if (cifile.eq.'') then
+               msg='The CI file has not been given'
+               call errcntrl(msg)
+            endif
+         endif
       endif
-
+      
       msg=''
       if (ijob.eq.4) then
          if (acol_n.eq.'') msg='Neutral Columbus directory name not given'

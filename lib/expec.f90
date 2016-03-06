@@ -110,6 +110,13 @@
     character(len=80)                      :: cifile,dnormfile,&
                                               vecfile
 
+    ! Seam distance projection
+    character(len=80)                      :: hfile
+    character(len=80), dimension(2)        :: gfile
+    real*8, dimension(:), allocatable      :: cigeom
+    real*8, dimension(:,:), allocatable    :: branchvec,branchproj
+    
+    
     ! adcprep
     integer*8, dimension(3)                :: nlines
     real*8                                 :: thrsh_alive,tfinal

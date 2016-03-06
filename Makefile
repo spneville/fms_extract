@@ -12,6 +12,8 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/errormod.f90 \
      $(MODPATH)/parsemod.f90 \
      $(MODPATH)/sysdef.f90 \
+     $(MODPATH)/kabschmod.f90 \
+     $(MODPATH)/permutemod.f90 \
      $(MODPATH)/trajdef.f90 \
      $(MODPATH)/expec.f90 \
      $(MODPATH)/intcoo.f90 \
