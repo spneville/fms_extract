@@ -503,33 +503,43 @@
       real*8                    :: intcoo
 
       ! TEMPORARY
-      integer, dimension(4)                :: hindx
+      integer, dimension(npermute)         :: indx
+      integer, dimension(natm)             :: is_perm
       integer, dimension(:,:), allocatable :: P
-      integer                              :: n,nperm,i,j,k
+      integer                              :: n,ncomb,i,j,k,count
       real*8                               :: rmsd,minrmsd
       
 !-----------------------------------------------------------------------
 ! Put the input geometry into maximum coincidence with the CI geometry
 ! subject to any user requested permutations of identical nuclei
-!
-! FOR NOW, THIS IS HARD-WIRED FOR THE CASE OF THE PERMUTATION OF THE
-! H-ATOMS IN ETHYLENE
 !-----------------------------------------------------------------------
-      hindx=(/3,4,5,6/)
+      ! Determine the indices of the nuclei that are to be permuted
+      is_perm=0
+      do i=1,natm
+         do j=1,npermute
+            if (pindx(j).eq.i) is_perm(i)=1
+         enddo
+      enddo
 
-      n=4
-      nperm=factorial(n)
+      ! Generate all permutations of the indices of the nuclei being
+      ! permuted
+      ncomb=factorial(npermute)
+      allocate(P(ncomb,npermute))
+      call permutate(pindx,P)
 
-      allocate(P(nperm,n))
-      call permutate(hindx,P)
-
+      ! Loop over all permutations of the nuclei being permuted,
+      ! calculate the RMSD from the CI geometry for each and save
+      ! the geometry with the lowest RMSD
       minrmsd=1000000.0d0
-      do i=1,nperm
-         hindx=P(i,:)
-         xcurr(1:6)=xcoo(1:6)
-         do j=1,4
-            k=2+j
-            xcurr(k*3-2:k*3)=xcoo(hindx(j)*3-2:hindx(j)*3)
+      do i=1,ncomb
+         indx=P(i,:)
+         xcurr=xcoo
+         count=0
+         do j=1,natm
+            if (is_perm(j).eq.1) then
+               count=count+1
+               xcurr(j*3-2:j*3)=xcoo(indx(count)*3-2:indx(count)*3)
+            endif
          enddo
          call kabsch(cigeom,xcurr,rmsd,rotx)
          if (rmsd.lt.minrmsd) then
@@ -538,22 +548,16 @@
          endif
       enddo
 
-!      print*
-!      print*,natm
-!      print*,
-!      do i=1,natm
-!         print*,atlbl(i),(cigeom(j)*0.529177249d0,j=i*3-2,i*3)
-!      enddo
-!      print*,natm
-!      print*,minrmsd
-!      do i=1,natm
-!         print*,atlbl(i),(xmin(j)*0.529177249d0,j=i*3-2,i*3)
-!      enddo
-
-      
+!-----------------------------------------------------------------------
+! Calculate the distance from the minimum RMSD geometry to the CI
+! geometry within the branching space
+!-----------------------------------------------------------------------
+      ! Project the displacement of the minimimum RMSD geometry
+      ! from the CI geometry onto the branching space
       dvec=cigeom-xmin
       dvec=matmul(branchproj,dvec)
 
+      ! Set intoo to the length of the projected displacement vector
       intcoo=sqrt(dot_product(dvec,dvec))
       
       return

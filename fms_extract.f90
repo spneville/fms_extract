@@ -135,6 +135,8 @@
       hfile=''
       gfile=''
       
+      npermute=0
+
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -580,8 +582,27 @@
                endif               
             else
                goto 100
-            endif 
-            
+            endif
+
+         else if (keyword(i).eq.'permute') then
+             if (keyword(i+1).eq.'=') then
+                i=i+2
+                k=i
+35              continue
+                npermute=npermute+1
+                if (keyword(k+1).eq.',') then
+                   k=k+2
+                   goto 35
+                endif
+                allocate(pindx(npermute))
+                do k=1,npermute
+                   read(keyword(i),*) pindx(k)
+                   i=i+2
+                enddo                
+             else
+                goto 100
+             endif
+                
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))

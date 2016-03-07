@@ -111,12 +111,13 @@
                                               vecfile
 
     ! Seam distance projection
-    character(len=80)                      :: hfile
-    character(len=80), dimension(2)        :: gfile
+    integer                                :: npermute
+    integer, dimension(:), allocatable     :: pindx
     real*8, dimension(:), allocatable      :: cigeom
     real*8, dimension(:,:), allocatable    :: branchvec,branchproj
-    
-    
+    character(len=80)                      :: hfile
+    character(len=80), dimension(2)        :: gfile
+
     ! adcprep
     integer*8, dimension(3)                :: nlines
     real*8                                 :: thrsh_alive,tfinal
