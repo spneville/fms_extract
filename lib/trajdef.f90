@@ -10,8 +10,8 @@
 !#######################################################################
 
     type trajectory
-       integer*8                               :: ntraj
-       integer*8, dimension(:), allocatable    :: ista,tkill,ispawn,&
+       integer                                 :: ntraj
+       integer, dimension(:), allocatable      :: ista,tkill,ispawn,&
                                                   tspawn
        real*8, dimension(:,:,:), allocatable   :: r,p
        real*8, dimension(:,:), allocatable     :: phase

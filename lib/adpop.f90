@@ -16,7 +16,7 @@
 
       implicit none
       
-      integer*8       :: i,j,k,n,itmp,staj,stak
+      integer         :: i,j,k,n,itmp,staj,stak
       complex*16      :: sjk,cj,ck
       logical(kind=4) :: lkill
 
@@ -97,7 +97,7 @@
 
       implicit none
 
-      integer*8  :: istep,itraj,jindx,kindx,m      
+      integer    :: istep,itraj,jindx,kindx,m      
       real*8     :: phdiff
       complex*16 :: overlap
 
@@ -126,7 +126,7 @@
 
       implicit none
 
-      integer*8  :: istep,itraj,jindx,kindx,m,i
+      integer    :: istep,itraj,jindx,kindx,m,i
       complex*16 :: overlap1d
       real*8     :: pre,eta,xi,a,rj,rk,pj,pk,rdiff,pdiff,rcent
 

@@ -95,20 +95,20 @@
 ! tgrid:      upper and lower bounds for the pump-probe delay in the
 !             calculation of the TRPES, as well as the no. points
 !-----------------------------------------------------------------------
-    integer*8                              :: ijob,ioutgeom,nionize,&
-                                              ngauss
-    integer*8, dimension(10)               :: iatm
-    integer*8                              :: ityp,nmc,dstep,dstate
-    integer*8, dimension(:,:), allocatable :: iionize
-    real*8, dimension(:), allocatable      :: cartvec,refgeom
-    real*8, dimension(4)                   :: dgrid
-    real*8, dimension(:,:), allocatable    :: adpop,gausspar
-    real*8, dimension(:), allocatable      :: pfunc,ipshift
-    real*8                                 :: eprobe,fwhm_e,fwhm_t
-    real*8, dimension(3)                   :: egrid,tgrid
-    logical(kind=4)                        :: lrenorm
-    character(len=80)                      :: cifile,dnormfile,&
-                                              vecfile
+    integer                              :: ijob,ioutgeom,nionize,&
+                                            ngauss
+    integer  , dimension(10)             :: iatm
+    integer                              :: ityp,nmc,dstep,dstate
+    integer, dimension(:,:), allocatable :: iionize
+    real*8, dimension(:), allocatable    :: cartvec,refgeom
+    real*8, dimension(4)                 :: dgrid
+    real*8, dimension(:,:), allocatable  :: adpop,gausspar
+    real*8, dimension(:), allocatable    :: pfunc,ipshift
+    real*8                               :: eprobe,fwhm_e,fwhm_t
+    real*8, dimension(3)                 :: egrid,tgrid
+    logical(kind=4)                      :: lrenorm
+    character(len=80)                    :: cifile,dnormfile,&
+                                            vecfile
 
     ! Seam distance projection
     integer                                :: npermute
@@ -119,15 +119,16 @@
     character(len=80), dimension(2)        :: gfile
 
     ! adcprep
-    integer*8, dimension(3)                :: nlines
+    integer, dimension(3)                  :: nlines
     real*8                                 :: thrsh_alive,tfinal
     character(len=80), dimension(3)        :: adcfile
     character(len=120), dimension(3,200)   :: adcinp
     logical(kind=4)                        :: ldummy
 
     ! adc_trxas
-    real*8                                 :: gamma
-    integer*8                              :: siord
+    real*8                                 :: gamma,cifdthrsh
+    integer                                :: siord,cifstate
     character(len=120)                     :: adcdir_file
+    logical(kind=4)                        :: lcifilter
    
   end module expec

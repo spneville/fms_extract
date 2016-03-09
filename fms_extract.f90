@@ -69,15 +69,15 @@
 
       implicit none
 
-      integer*8                            :: unit,i,j,k,ndef,n,s,s1
+      integer                              :: unit,i,j,k,ndef,n,s,s1
       real*8, dimension(100)               :: tmpshift
       real*8                               :: ftmp,crosscorr,dtprobe
       character(len=80)                    :: adirfile,ainp
       character(len=60)                    :: msg
 
-      integer*8                            :: inkw
-      integer*8, parameter                 :: maxkw=60
-      integer*8, dimension(maxkw)          :: ilkw
+      integer                              :: inkw
+      integer,   parameter                 :: maxkw=60
+      integer,   dimension(maxkw)          :: ilkw
       character(len=120), dimension(maxkw) :: keyword
 
 !-----------------------------------------------------------------------
@@ -136,6 +136,9 @@
       gfile=''
       
       npermute=0
+
+      lcifilter=.false.
+      cifstate=0
 
 !-----------------------------------------------------------------------
 ! Read input file name
@@ -226,7 +229,13 @@
                   ndef=4
                else if (keyword(i).eq.'twist') then
                   ityp=4
-                  ndef=8               
+                  ndef=8
+               else if (keyword(i).eq.'pyr') then
+                  ityp=5
+                  ndef=4
+               else if (keyword(i).eq.'pyr2') then
+                  ityp=6
+                  ndef=6
                else if (keyword(i).eq.'cartvec') then
                   ityp=-1
                else if (keyword(i).eq.'seam') then
@@ -602,6 +611,21 @@
              else
                 goto 100
              endif
+
+          else if (keyword(i).eq.'ci_filter') then
+             lcifilter=.true.
+             ityp=-2
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) cifdthrsh
+               ! Optional state index
+               if (keyword(i+1).eq.',') then
+                  i=i+2
+                  read(keyword(i),*) cifstate
+               endif
+            else
+               goto 100
+            endif
                 
          else
             ! Exit if the keyword is not recognised
@@ -798,14 +822,14 @@
 
       implicit none
 
-      integer*8                                    :: unit,n
+      integer                                      :: unit,n
       character(len=80)                            :: adirfile,string
       character(len=80), dimension(:), allocatable :: adir
 
-      integer*8                                    :: i,k
-      integer*8                                    :: inkw
-      integer*8, parameter                         :: maxkw=60
-      integer*8, dimension(maxkw)                  :: ilkw
+      integer                                      :: i,k
+      integer                                      :: inkw
+      integer, parameter                           :: maxkw=60
+      integer, dimension(maxkw)                    :: ilkw
       character(len=120), dimension(maxkw)         :: keyword
       character(len=60)                            :: msg
 
@@ -860,7 +884,7 @@
 
       implicit none
       
-      integer*8                             :: unit,i,n
+      integer                               :: unit,i,n
       character(len=80), dimension(nintraj) :: adir
       character(len=100)                    :: ageom
 
@@ -919,7 +943,7 @@
 
       implicit none
 
-      integer*8                             :: i,k,nspawn
+      integer                               :: i,k,nspawn
       character(len=80), dimension(nintraj) :: adir
       character(len=150)                    :: atmp
 
@@ -985,7 +1009,7 @@
       
       implicit none
 
-      integer*8          :: unit,i
+      integer            :: unit,i
       character(len=80)  :: dir1
       character(len=120) :: filename,string
 
@@ -1013,7 +1037,7 @@
 
       implicit none
 
-      integer*8          :: k
+      integer            :: k
       character(len=80)  :: currdir
       character(len=150) :: stem,atmp
       character(len=250) :: acmnd
@@ -1070,7 +1094,7 @@
 
       implicit none
 
-      integer*8                            :: itraj,nspawn,k,unit
+      integer                              :: itraj,nspawn,k,unit
       real*8                               :: ftmp
       character(len=80)                    :: currdir,string
       character(len=150)                   :: atmp,afile
@@ -1137,7 +1161,7 @@
 
       implicit none
 
-      integer*8 :: itraj,ntraj
+      integer :: itraj,ntraj
 
       ntraj=traj(itraj)%ntraj
 
@@ -1255,7 +1279,7 @@
 
       implicit none
 
-      integer*8                   :: itraj,ntraj,unit,i,j,k,&
+      integer                     :: itraj,ntraj,unit,i,j,k,&
                                      n,ncoo
       real*8                      :: t,gtmp,crtmp,citmp,dum,stmp
       real*8, dimension(3*natm)   :: rtmp,ptmp
@@ -1330,7 +1354,7 @@
 
       implicit none
 
-      integer*8         :: ncoo
+      integer           :: ncoo
       character(len=50) :: fmat
 
       fmat=''
@@ -1359,7 +1383,7 @@
 
       implicit none
 
-      integer*8                         :: nspawn,unit,i,ipass,iout,k,m
+      integer                           :: nspawn,unit,i,ipass,iout,k,m
       real*8, dimension(natm*3)         :: currxcoo
       character(len=2), dimension(natm) :: atmlbl
       character(len=8)                  :: atmp
@@ -1430,7 +1454,7 @@
 
       implicit none
 
-      integer*8                         :: ioutgeom,natm,ipass,igeom
+      integer                           :: ioutgeom,natm,ipass,igeom
       real*8, dimension(natm*3)         :: currxcoo
       character(len=2), dimension(natm) :: atmlbl
       character(len=80)                 :: acmnd
@@ -1470,7 +1494,7 @@
 
       implicit none
 
-      integer*8                         :: natm,ipass,igeom,unit,i,j
+      integer                           :: natm,ipass,igeom,unit,i,j
       real*8, dimension(natm*3)         :: currxcoo
       real*8                            :: fmass,fatnum
       character(len=2), dimension(natm) :: atmlbl
@@ -1559,7 +1583,7 @@
 
       implicit none
 
-      integer*8         :: k,i
+      integer           :: k,i
       character(len=80) :: string
 
       k=0
@@ -1579,7 +1603,7 @@
 
       implicit none
       
-      integer*8         :: i,itmp,ilbl,jlbl
+      integer           :: i,itmp,ilbl,jlbl
       real*8            :: ftmp
       character(len=80) :: string
 
@@ -1644,7 +1668,7 @@
 
       implicit none
 
-      integer*8       :: i,j,n
+      integer         :: i,j,n
       real*8          :: sumsq
       complex*16      :: cj
       logical(kind=4) :: lalive
@@ -1759,7 +1783,7 @@
 
       implicit none
       
-      integer*8                     :: i,n,unit
+      integer                       :: i,n,unit
       character(len=8)              :: aout
 
       unit=20
@@ -1799,7 +1823,7 @@
 
       implicit none
 
-      integer*8 :: iout
+      integer :: iout
 
 !-----------------------------------------------------------------------
 ! Write gnuplot file

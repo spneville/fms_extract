@@ -3,7 +3,7 @@
     implicit none
 
     save
-    integer*8 :: iline
+    integer :: iline
 
   contains
 
@@ -29,9 +29,9 @@
 
       implicit none
 
-      integer*8                            :: unit,i,k,inkw,istart,iend
-      integer*8, parameter                 :: maxkw=60
-      integer*8, dimension(maxkw)          :: ilkw
+      integer                              :: unit,i,k,inkw,istart,iend
+      integer, parameter                   :: maxkw=60
+      integer, dimension(maxkw)            :: ilkw
       character(len=120)                   :: string,message
       character(len=120), dimension(maxkw) :: keyword
 
@@ -134,7 +134,7 @@
       
       implicit none
       
-      integer*8    ::  i,j,length
+      integer      ::  i,j,length
       character(*) :: string
       
       length=len(string)

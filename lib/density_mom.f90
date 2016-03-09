@@ -28,7 +28,7 @@
 
       implicit none
 
-      integer*8                        :: n,m,i,ibas,ibin,itmp,nalive,&
+      integer                          :: n,m,i,ibas,ibin,itmp,nalive,&
                                           iout,count
       real*8, dimension(3*natm)        :: xcoo,pcoo
       real*8                           :: icoo,dens,impfunc
@@ -176,7 +176,7 @@
 
       implicit none
 
-      integer*8                             :: i,ntraj,istep,itraj
+      integer                               :: i,ntraj,istep,itraj
       real*8, dimension(natm*3)             :: alpha_tmp
       real*8, dimension(:,:,:), allocatable :: r_tmp,p_tmp
 
@@ -229,7 +229,7 @@
 
       implicit none
       
-      integer*8 :: itmp
+      integer :: itmp
 
 !-----------------------------------------------------------------------
 ! pfunc: probabilities of the internal coordinate being in each
@@ -253,7 +253,7 @@
 
       implicit none
 
-      integer*8                        :: npart,i
+      integer                          :: npart,i
       real*8, dimension(int(dgrid(4))) :: cent
       real*8                           :: a,b
 
@@ -281,10 +281,10 @@
 
       implicit none
 
-      integer*8                            :: unit,i,k
-      integer*8                            :: inkw
-      integer*8, parameter                 :: maxkw=60
-      integer*8, dimension(maxkw)          :: ilkw
+      integer                              :: unit,i,k
+      integer                              :: inkw
+      integer, parameter                   :: maxkw=60
+      integer, dimension(maxkw)            :: ilkw
       real*8                               :: dp
       character(len=120), dimension(maxkw) :: keyword
 
@@ -341,7 +341,7 @@
 
       implicit none
 
-      integer*8  :: ibas,itraj,istep,j,ntraj
+      integer    :: ibas,itraj,istep,j,ntraj
       real*8     :: randm,pop
       complex*16 :: coe
 
@@ -385,7 +385,7 @@
 
       implicit none
 
-      integer*8                 :: ibas,itraj,istep,i,j
+      integer                   :: ibas,itraj,istep,i,j
       real*8, dimension(3*natm) :: xcoo,pcoo
       real*8                    :: pcent,sigma,dx1,dx2,rsq
 
@@ -453,8 +453,8 @@
 
       implicit none
 
-      integer*8 :: ibin
-      real*8    :: icoo
+      integer :: ibin
+      real*8  :: icoo
 
       ibin=ceiling((icoo-dgrid(1))/dgrid(3))
 
@@ -472,7 +472,7 @@
 
       implicit none
 
-      integer*8                 :: itraj,istep,ntraj,j,m
+      integer                   :: itraj,istep,ntraj,j,m
       real*8                    :: func,gxg
       real*8, dimension(3*natm) :: xcoo
       complex*16                :: cj
@@ -505,7 +505,7 @@
 
       implicit none
 
-      integer*8                        :: istep,iout,npart,i
+      integer                          :: istep,iout,npart,i
       real*8, dimension(int(dgrid(4))) :: pfunc,cent
       real*8                           :: t
 

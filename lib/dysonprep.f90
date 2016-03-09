@@ -16,7 +16,7 @@
       
       implicit none
 
-      integer*8          :: i,k,n
+      integer            :: i,k,n
       real*8, parameter  :: coethrsh=0.05d0
       real*8             :: coesq
       complex*16         :: coe

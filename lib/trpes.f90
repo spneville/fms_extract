@@ -14,7 +14,7 @@
 
       implicit none
 
-      integer*8                                     :: i,nmaindir
+      integer                                       :: i,nmaindir
       character(len=120), dimension(:), allocatable :: amaindir
 
       write(6,'(/,70a)') ('-',i=1,70)
@@ -44,13 +44,13 @@
 
       implicit none
 
-      integer*8                                     :: nmaindir,unit,n
+      integer                                       :: nmaindir,unit,n
       character(len=120), dimension(:), allocatable :: amaindir
       character(len=120)                            :: string
 
-      integer*8                                     :: inkw
-      integer*8, parameter                          :: maxkw=60
-      integer*8, dimension(maxkw)                   :: ilkw
+      integer                                       :: inkw
+      integer, parameter                            :: maxkw=60
+      integer, dimension(maxkw)                     :: ilkw
       character(len=120), dimension(maxkw)          :: keyword
 
 !-----------------------------------------------------------------------
@@ -106,10 +106,10 @@
 
       implicit none
 
-      integer*8                                     :: nmaindir,i,nifg,&
+      integer                                       :: nmaindir,i,nifg,&
                                                        nsubdir,maxgauss
-      integer*8, dimension(nmaindir)                :: staindx
-      integer*8, dimension(:), allocatable          :: step
+      integer, dimension(nmaindir)                  :: staindx
+      integer, dimension(:), allocatable            :: step
       real*8, dimension(:,:), allocatable           :: ip,dnorm
       complex*16, dimension(:), allocatable         :: coeff
       character(len=120), dimension(nmaindir)       :: amaindir
@@ -181,8 +181,8 @@
 
       implicit none
 
-      integer*8                               :: nifg,nmaindir,i,k,unit
-      integer*8, dimension(nintraj)           :: cnt
+      integer                                 :: nifg,nmaindir,i,k,unit
+      integer, dimension(nintraj)             :: cnt
       character(len=120), dimension(nmaindir) :: amaindir
       character(len=130)                      :: ain
 
@@ -212,8 +212,8 @@
 
       implicit none
 
-      integer*8, dimension(nmaindir)          :: staindx
-      integer*8                               :: nifg,nmaindir,i,unit
+      integer, dimension(nmaindir)            :: staindx
+      integer                                 :: nifg,nmaindir,i,unit
       character(len=120), dimension(nmaindir) :: amaindir
       character(len=130)                      :: ain
 
@@ -234,8 +234,8 @@
 
       implicit none
 
-      integer*8                                     :: unit,nsubdir,i
-      integer*8, dimension(:), allocatable          :: step
+      integer                                       :: unit,nsubdir,i
+      integer, dimension(:), allocatable            :: step
       character(len=120)                            :: amaindir
       character(len=130)                            :: alist,string
       character(len=120), dimension(:), allocatable :: asubdir
@@ -293,7 +293,7 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,i,j,k,unit,nsta,&
+      integer                                :: nsubdir,i,j,k,unit,nsta,&
                                                 sn,sc
       real*8, dimension(:,:), allocatable    :: ip
       real*8, dimension(30)                  :: en_n,en_c
@@ -404,9 +404,9 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,i,j,k,unit,si,&
+      integer                                :: nsubdir,i,j,k,unit,si,&
                                                 dj,n
-      integer*8, dimension(nsubdir)          :: step
+      integer, dimension(nsubdir)            :: step
       real*8, dimension(:,:), allocatable    :: dnorm
       real*8                                 :: csq
       complex*16, dimension(nsubdir)         :: coeff
@@ -500,7 +500,7 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,i,unit
+      integer                                :: nsubdir,i,unit
       real*8                                 :: cr,ci
       complex*16, dimension(:), allocatable  :: coeff
       character(len=120)                     :: amaindir
@@ -540,8 +540,8 @@
 
       implicit none
 
-      integer*8                          :: nsubdir,n,k,ista,nifg
-      integer*8, dimension(nsubdir)      :: step
+      integer                            :: nsubdir,n,k,ista,nifg
+      integer, dimension(nsubdir)        :: step
       real*8, dimension(nsubdir,nionize) :: ip,dnorm
       real*8                             :: t,csq
       real*8, parameter                  :: cthresh=0.01d0
@@ -611,8 +611,8 @@
 
       implicit none
 
-      integer*8 :: i,j,k,iout,nifg
-      real*8    :: a,esig,tsig,tcent,ecent,e,t,dele,delt,func
+      integer :: i,j,k,iout,nifg
+      real*8  :: a,esig,tsig,tcent,ecent,e,t,dele,delt,func
 
       write(6,'(/,2x,a,/)') 'Constructing the TRPES...'
 

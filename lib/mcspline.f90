@@ -20,7 +20,7 @@
       
       implicit none
 
-      integer*8                    :: negrid,siord
+      integer                      :: negrid,siord
       real*8, dimension(3,siord-1) :: e,f
       real*8, dimension(negrid)    :: xsec
       real*8, dimension(3)         :: egrid
@@ -79,7 +79,7 @@
 
       implicit none
 
-      integer*8                 :: negrid
+      integer                   :: negrid
       real*8, dimension(negrid) :: xsec
       real*8, dimension(3)      :: egrid
       real*8                    :: ip
@@ -230,7 +230,7 @@
 
       implicit none
 
-      integer*8                 :: negrid,k,i,iint
+      integer                   :: negrid,k,i,iint
       real*8, dimension(3)      :: egrid
       real*8, dimension(negrid) :: xsec
       real*8                    :: ip,diff,p,xcurr
@@ -282,8 +282,8 @@
 
       implicit none
 
-      integer*8 :: iint,k,i
-      real*8    :: xcurr
+      integer :: iint,k,i
+      real*8  :: xcurr
 
       do i=1,nintvl(k)
          if (xcurr.ge.x(k,i).and.xcurr.lt.x(k,i+1)) then

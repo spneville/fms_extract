@@ -13,7 +13,7 @@
 
       implicit none
 
-      integer*8                        :: i,j,k,l
+      integer                          :: i,j,k,l
       real*8, dimension(natm*3)        :: x1,x2,rotx
       real*8, dimension(natm,3)        :: x1mat,x2mat,rmat
       real*8, dimension(3,3)           :: vut,rotmat,tmpmat

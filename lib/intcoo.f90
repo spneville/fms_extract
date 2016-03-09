@@ -12,7 +12,9 @@
 !      2 <-> angle
 !      3 <-> dihedral
 !      4 <-> twisting angle
-!     -1 <-> Cartesian vector
+!      5 <-> pyramidalisation angle
+!      6 <-> maximum pyramidalisation angle over two groups
+!     -1 <-> Cartesian vector (momentum representation only)
 !     -2 <-> Distance from a CI projected onto the branching space
 !#######################################################################
 
@@ -39,6 +41,12 @@
 
       case(4) ! Twisting angle
          call calc_twist(xcoo,intcoo)
+
+      case(5) ! Pyramidalisation angle
+         call calc_pyr(xcoo,intcoo)
+
+      case(6) ! Pyramidalisation angle, two groups
+         call calc_pyr2(xcoo,intcoo)
 
       case(-2) ! Distance from a CI projected onto the branching space
          call calc_dist_seam(xcoo,intcoo)
@@ -83,7 +91,7 @@
 
       implicit none
 
-      integer*8                 :: i,k1,k2
+      integer                   :: i,k1,k2
       real*8, dimension(natm*3) :: xcoo
       real*8                    :: intcoo
       
@@ -111,7 +119,7 @@
 
       implicit none
 
-      integer*8                 :: i,k1,k2,k3
+      integer                   :: i,k1,k2,k3
       real*8, dimension(natm*3) :: xcoo
       real*8                    :: intcoo,dp,len1,len2,pi
       real*8, dimension(3)      :: vec1,vec2
@@ -154,7 +162,7 @@
 
       implicit none
 
-      integer*8                 :: i,k1,k2,k3,k4
+      integer                   :: i,k1,k2,k3,k4
       real*8, dimension(natm*3) :: xcoo
       real*8                    :: intcoo,pi,ftmp1,ftmp2
       real*8, dimension(3)      :: vec1,vec2,vec3,tmp1,tmp2,tmp3,tmp4
@@ -199,7 +207,7 @@
       use expec
       use sysdef
       
-      integer*8                 :: i,k1,k2,k3,k4,k5,k6,k7,k8
+      integer                   :: i,k1,k2,k3,k4,k5,k6,k7,k8
       real*8, dimension(natm*3) :: xcoo
       real*8                    :: intcoo,pi,dot,len1,len2,len3,len4
       real*8, dimension(3)      :: vec1,vec2,vec3,vec4,cross1,cross2
@@ -252,6 +260,108 @@
 
 !#######################################################################
 
+    subroutine calc_pyr(xcoo,intcoo)
+
+      use expec
+      use sysdef
+
+      integer                   :: k1,k2,k3,k4,i
+      real*8, dimension(natm*3) :: xcoo
+      real*8                    :: intcoo,pi
+      real*8, dimension(3)      :: r14,r23,r13,r12,r14xr23,r13xr12
+      
+      pi=4.0d0*datan(1.0d0)
+
+      k1=iatm(1)
+      k2=iatm(2)
+      k3=iatm(3)
+      k4=iatm(4)
+
+      do i=1,3
+         r14(i)=xcoo(k4*3-3+i)-xcoo(k1*3-3+i)
+         r23(i)=xcoo(k3*3-3+i)-xcoo(k2*3-3+i)
+         r13(i)=xcoo(k3*3-3+i)-xcoo(k1*3-3+i)
+         r12(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+      enddo
+      r14=r14/sqrt(dot_product(r14,r14))
+      r23=r23/sqrt(dot_product(r23,r23))
+      r13=r13/sqrt(dot_product(r13,r13))
+      r12=r12/sqrt(dot_product(r12,r12))
+
+      r14xr23=cross_product(r14,r23)
+      r13xr12=cross_product(r13,r12)
+      r14xr23=r14xr23/sqrt(dot_product(r14xr23,r14xr23))
+      r13xr12=r13xr12/sqrt(dot_product(r13xr12,r13xr12))
+
+      intcoo=acos(dot_product(r14xr23,r13xr12))
+      intcoo=180.0d0-intcoo*180.0d0/pi
+
+      return
+
+    end subroutine calc_pyr
+
+!#######################################################################
+
+    subroutine calc_pyr2(xcoo,intcoo)
+
+      use expec
+      use sysdef
+
+      integer                   :: k1,k2,k3,k4,k5,k6,i
+      real*8, dimension(natm*3) :: xcoo
+      real*8                    :: intcoo,val1,val2,pi
+      real*8, dimension(3)      :: r14,r23,r13,r12,r41,r56,r46,r45,&
+                                   r14xr23,r13xr12,r41xr56,r46xr45
+
+      pi=4.0d0*datan(1.0d0)
+
+      k1=iatm(1)
+      k2=iatm(2)
+      k3=iatm(3)
+      k4=iatm(4)
+      k5=iatm(5)
+      k6=iatm(6)
+
+      do i=1,3
+         r14(i)=xcoo(k4*3-3+i)-xcoo(k1*3-3+i)
+         r23(i)=xcoo(k3*3-3+i)-xcoo(k2*3-3+i)
+         r13(i)=xcoo(k3*3-3+i)-xcoo(k1*3-3+i)
+         r12(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)
+         r41(i)=xcoo(k1*3-3+i)-xcoo(k4*3-3+i)
+         r56(i)=xcoo(k6*3-3+i)-xcoo(k5*3-3+i)
+         r46(i)=xcoo(k6*3-3+i)-xcoo(k4*3-3+i)
+         r45(i)=xcoo(k5*3-3+i)-xcoo(k4*3-3+i)
+      enddo
+      r14=r14/sqrt(dot_product(r14,r14))
+      r23=r23/sqrt(dot_product(r23,r23))
+      r13=r13/sqrt(dot_product(r13,r13))
+      r12=r12/sqrt(dot_product(r12,r12))
+      r41=r41/sqrt(dot_product(r41,r41))
+      r56=r56/sqrt(dot_product(r56,r56))
+      r46=r46/sqrt(dot_product(r46,r46))
+      r45=r45/sqrt(dot_product(r45,r45))
+
+      r14xr23=cross_product(r14,r23)
+      r13xr12=cross_product(r13,r12)
+      r41xr56=cross_product(r41,r56)
+      r46xr45=cross_product(r46,r45)
+      r14xr23=r14xr23/sqrt(dot_product(r14xr23,r14xr23))
+      r13xr12=r13xr12/sqrt(dot_product(r13xr12,r13xr12))
+      r41xr56=r41xr56/sqrt(dot_product(r41xr56,r41xr56))
+      r46xr45=r46xr45/sqrt(dot_product(r46xr45,r46xr45))
+
+      val1=acos(dot_product(r14xr23,r13xr12))      
+      val2=acos(dot_product(r41xr56,r46xr45))
+
+      intcoo=max(val1,val2)
+      intcoo=180.0d0-intcoo*180.0d0/pi
+
+      return
+
+    end subroutine calc_pyr2
+
+!#######################################################################
+
     subroutine calc_cart(pcoo,xcoo,intmom)
 
       use expec
@@ -259,7 +369,7 @@
 
       implicit none
 
-      integer*8                 :: i,j,k
+      integer                   :: i,j,k
       real*8, dimension(natm*3) :: pcoo,xcoo,tvec
       real*8                    :: intmom
       real*8, dimension(3,3)    :: rotmat
@@ -330,7 +440,7 @@
 
       implicit none
 
-      integer*8                        :: i,j,k,l
+      integer                          :: i,j,k,l
       real*8, dimension(natm*3)        :: x1,x2,rotx
       real*8, dimension(natm,3)        :: x1mat,x2mat,rmat
       real*8, dimension(3,3)           :: vut,rotmat,tmpmat
@@ -508,45 +618,49 @@
       integer, dimension(:,:), allocatable :: P
       integer                              :: n,ncomb,i,j,k,count
       real*8                               :: rmsd,minrmsd
-      
+
 !-----------------------------------------------------------------------
 ! Put the input geometry into maximum coincidence with the CI geometry
 ! subject to any user requested permutations of identical nuclei
 !-----------------------------------------------------------------------
-      ! Determine the indices of the nuclei that are to be permuted
-      is_perm=0
-      do i=1,natm
-         do j=1,npermute
-            if (pindx(j).eq.i) is_perm(i)=1
-         enddo
-      enddo
-
-      ! Generate all permutations of the indices of the nuclei being
-      ! permuted
-      ncomb=factorial(npermute)
-      allocate(P(ncomb,npermute))
-      call permutate(pindx,P)
-
-      ! Loop over all permutations of the nuclei being permuted,
-      ! calculate the RMSD from the CI geometry for each and save
-      ! the geometry with the lowest RMSD
-      minrmsd=1000000.0d0
-      do i=1,ncomb
-         indx=P(i,:)
-         xcurr=xcoo
-         count=0
-         do j=1,natm
-            if (is_perm(j).eq.1) then
-               count=count+1
-               xcurr(j*3-2:j*3)=xcoo(indx(count)*3-2:indx(count)*3)
+      if (npermute.eq.0) then
+         ! No permutation of identical atoms
+         xmin=xcoo
+         call kabsch(cigeom,xmin,rmsd,rotx)
+      else
+         ! Determine the indices of the nuclei that are to be permuted
+         is_perm=0
+         do i=1,natm
+            do j=1,npermute
+               if (pindx(j).eq.i) is_perm(i)=1
+            enddo
+         enddo         
+         ! Generate all permutations of the indices of the nuclei being
+         ! permuted
+         ncomb=factorial(npermute)
+         allocate(P(ncomb,npermute))
+         call permutate(pindx,P)
+         ! Loop over all permutations of the nuclei being permuted,
+         ! calculate the RMSD from the CI geometry for each and save
+         ! the geometry with the lowest RMSD
+         minrmsd=1000000.0d0
+         do i=1,ncomb
+            indx=P(i,:)
+            xcurr=xcoo
+            count=0
+            do j=1,natm
+               if (is_perm(j).eq.1) then
+                  count=count+1
+                  xcurr(j*3-2:j*3)=xcoo(indx(count)*3-2:indx(count)*3)
+               endif
+            enddo
+            call kabsch(cigeom,xcurr,rmsd,rotx)
+            if (rmsd.lt.minrmsd) then
+               minrmsd=rmsd
+               xmin=rotx
             endif
          enddo
-         call kabsch(cigeom,xcurr,rmsd,rotx)
-         if (rmsd.lt.minrmsd) then
-            minrmsd=rmsd
-            xmin=rotx
-         endif
-      enddo
+      endif
 
 !-----------------------------------------------------------------------
 ! Calculate the distance from the minimum RMSD geometry to the CI

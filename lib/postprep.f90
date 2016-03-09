@@ -13,7 +13,7 @@
 
       implicit none
       
-      integer*8          :: i,k
+      integer            :: i,k
       character(len=120) :: amain
       
       amain=''
@@ -66,7 +66,7 @@
 
       implicit none
 
-      integer*8          :: ifg,itraj,unit
+      integer            :: ifg,itraj,unit
       character(len=120) :: amain
       character(len=130) :: aout
 
@@ -99,7 +99,7 @@
 
       implicit none
 
-      integer*8          :: ifg,itraj,unit
+      integer            :: ifg,itraj,unit
       character(len=120) :: amain
       character(len=130) :: aout
 
@@ -130,7 +130,7 @@
 
       implicit none
 
-      integer*8          :: i,k,n
+      integer            :: i,k,n
       character(len=120) :: asub
 
       asub=''
@@ -171,7 +171,7 @@
 
       implicit none
 
-      integer*8          :: ifg,itraj,istep,unit
+      integer            :: ifg,itraj,istep,unit
       real*8             :: coe_r,coe_i
       character(len=120) :: asub
       character(len=130) :: aout
@@ -250,7 +250,7 @@
 
       implicit none
 
-      integer*8                 :: ifg,itraj,istep,unit,i,m,k,spawnstep
+      integer                   :: ifg,itraj,istep,unit,i,m,k,spawnstep
       real*8, dimension(natm*3) :: x
       real*8, dimension(3)      :: xcom
       character(len=120)        :: asub
@@ -335,7 +335,7 @@
 
       implicit none
 
-      integer*8                 :: ifg,itraj,istep,unit,i,m,k,spawnstep
+      integer                   :: ifg,itraj,istep,unit,i,m,k,spawnstep
       real*8, dimension(natm*3) :: x
       real*8, dimension(3)      :: xcom
       character(len=120)        :: asub
@@ -378,7 +378,7 @@
       
       implicit none
       
-      integer*8                 :: i,j
+      integer                   :: i,j
       real*8, dimension(natm*3) :: x
       real*8, dimension(3)      :: xcom
       real*8                    :: totmass
@@ -408,7 +408,7 @@
       
       implicit none
 
-      integer*8                      :: ifg,itraj,istep,unit,i,j,k,&
+      integer                        :: ifg,itraj,istep,unit,i,j,k,&
                                         spawnstep,n,c,ilbl
       real*8, dimension(natm*3)      :: x
       character(len=120)             :: asub
@@ -518,7 +518,7 @@
       
       implicit none
       
-      integer*8                 :: ifg,itraj,istep,spawnstep,k,k1,&
+      integer                   :: ifg,itraj,istep,spawnstep,k,k1,&
                                    spawncurr,trajlbl
       real*8, dimension(natm*3) :: x
       
@@ -565,7 +565,7 @@
 
       implicit none
 
-      integer*8          :: ifg,itraj,istep,k
+      integer            :: ifg,itraj,istep,k
       character(len=130) :: filename
       character(len=150) :: dir
       character(len=3)   :: type

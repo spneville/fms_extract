@@ -2,10 +2,10 @@
 
     save
     
-    integer*8                                     :: nmaindir,nifg,&
+    integer                                       :: nmaindir,nifg,&
                                                      ne,nt,maxfunc,nfunc
-    integer*8, dimension(:), allocatable          :: staindx,ifgindx
-    integer*8                                     :: failunit,okunit
+    integer, dimension(:), allocatable            :: staindx,ifgindx
+    integer                                       :: failunit,okunit
     real*8, dimension(:,:), allocatable           :: spec,par,cnorm
     real*8, parameter                             :: eh2ev=27.2113845d0
     real*8, parameter                             :: c_au=137.03604d0
@@ -26,7 +26,7 @@
 
       implicit none
 
-      integer*8 :: i
+      integer :: i
       
       write(6,'(/,70a)') ('-',i=1,70)
       write(6,'(11x,a)') 'Calculating the TR-TXAS using ADC &
@@ -67,12 +67,12 @@
 
       implicit none
 
-      integer*8                            :: unit,n
+      integer                              :: unit,n
       character(len=120)                   :: string
 
-      integer*8                            :: inkw
-      integer*8, parameter                 :: maxkw=60
-      integer*8, dimension(maxkw)          :: ilkw
+      integer                              :: inkw
+      integer, parameter                   :: maxkw=60
+      integer, dimension(maxkw)            :: ilkw
       character(len=120), dimension(maxkw) :: keyword
 
 !-----------------------------------------------------------------------
@@ -105,7 +105,7 @@
       call rdinp(unit,keyword,inkw,ilkw)
       if (keyword(1).ne.'end-file') then
          n=n+1
-         amaindir(n)=keyword(1)
+         amaindir(n)=keyword(1)         
          goto 10
       endif
 
@@ -128,9 +128,9 @@
 
       implicit none
 
-      integer*8                                     :: i,nsubdir,itmp,&
+      integer                                       :: i,nsubdir,itmp,&
                                                        ncontrib,nstates_f
-      integer*8, dimension(:), allocatable          :: step,icontrib
+      integer, dimension(:), allocatable            :: step,icontrib
       real*8, dimension(:), allocatable             :: ip,einit
       real*8, dimension(:,:), allocatable           :: tdmsq,deltae
       complex*16, dimension(:), allocatable         :: coeff
@@ -143,6 +143,14 @@
 ! in fs.
 !-----------------------------------------------------------------------
       egrid(1:2)=egrid(1:2)/eh2ev
+
+!-----------------------------------------------------------------------
+! CI filtering
+!-----------------------------------------------------------------------
+      if (lcifilter) then
+         call rdseamfiles2
+         call calc_projector2
+      endif
 
 !-----------------------------------------------------------------------
 ! Determine the number of IFGs being considered, which may be less than
@@ -173,7 +181,7 @@
       if (lbound) then
          call getsubdirs(amaindir(1),nsubdir,asubdir,step)
          call getcontrib(ncontrib,icontrib,amaindir(1),asubdir,&
-              nsubdir,0)
+              nsubdir,0,staindx(1))
          call get_nstates_f(nstates_f,amaindir(1),asubdir,nsubdir,&
               icontrib)
       endif
@@ -211,7 +219,7 @@
          ! Determine which timesteps/subdirectories contribute to the
          ! spectrum
          call getcontrib(ncontrib,icontrib,amaindir(i),asubdir,&
-              nsubdir,0)
+              nsubdir,0,staindx(i))
 
          ! Cycle if no timesteps/subdirectories contribute to the
          ! spectrum
@@ -254,9 +262,9 @@
 
       implicit none
 
-      integer*8                     :: i,k,unit
-      integer*8, dimension(nintraj) :: cnt
-      character(len=130)            :: ain
+      integer                     :: i,k,unit
+      integer, dimension(nintraj) :: cnt
+      character(len=130)          :: ain
 
       allocate(ifgindx(nmaindir))
              
@@ -289,7 +297,7 @@
 
       implicit none
 
-      integer*8          :: i,unit
+      integer            :: i,unit
       character(len=130) :: ain
 
       unit=20
@@ -312,9 +320,10 @@
 
       implicit none
       
-      integer*8                              :: nstates_f,nsubdir,i,&
-                                                k1,k2,k3,unit,ilbl
-      integer*8, dimension(nsubdir)          :: icontrib
+      integer                                :: nstates_f,nsubdir,i,j,&
+                                                k1,k2,k3,unit,ilbl,istart,&
+                                                iend
+      integer, dimension(nsubdir)            :: icontrib
       character(len=120)                     :: amaindir,string
       character(len=120), dimension(nsubdir) :: asubdir
       character(len=250)                     :: filename
@@ -325,7 +334,21 @@
          
          if (icontrib(i).eq.0) cycle
 
-         k1=index(amaindir,'/')+1
+!         k1=index(amaindir,'/')+1
+!         k2=len_trim(amaindir)
+!         if (index(asubdir(i),'/').eq.0) then
+!            k3=len_trim(asubdir(i))
+!         else
+!            k3=len_trim(asubdir(i))-1
+!         endif
+
+         iend=len_trim(amaindir)
+         istart=0
+         do j=3,iend
+            if (amaindir(j-2:j).eq.'../') istart=j+1
+         enddo
+         if (istart.eq.0) istart=1
+         k1=index(amaindir(istart:iend),'/')+istart 
          k2=len_trim(amaindir)
          if (index(asubdir(i),'/').eq.0) then
             k3=len_trim(asubdir(i))
@@ -367,7 +390,7 @@
       
       implicit none
       
-      integer*8 :: ne,nt
+      integer :: ne,nt
       
       ! Electronic state indices
       allocate(staindx(nmaindir))
@@ -392,10 +415,10 @@
 
       implicit none
 
-      integer*8                                     :: n,k,ifg,itmp,&
+      integer                                       :: n,k,ifg,itmp,&
                                                        nsubdir,&
                                                        ncontrib
-      integer*8, dimension(:), allocatable          :: step,icontrib
+      integer, dimension(:), allocatable            :: step,icontrib
       real*8                                        :: ftmp
       complex*16, dimension(:), allocatable         :: coeff
       character(len=120), dimension(:), allocatable :: asubdir
@@ -426,12 +449,12 @@
 
          ! Determine which timesteps/subdirectories contribute to the
          ! spectrum
-         call getcontrib(ncontrib,icontrib,amaindir(n),asubdir,nsubdir,1)
+         call getcontrib(ncontrib,icontrib,amaindir(n),asubdir,nsubdir,&
+              1,staindx(n))
          
          ! Add the current contribution to the cnorm array
-         do k=1,nsubdir            
+         do k=1,nsubdir
             if (icontrib(k).eq.0) cycle
-
             itmp=step(k)/dstep+1
             cnorm(ifg,itmp)=cnorm(ifg,itmp)+conjg(coeff(k))*coeff(k)
          enddo
@@ -454,8 +477,8 @@
 
       implicit none
 
-      integer*8                                     :: unit,nsubdir,i
-      integer*8, dimension(:), allocatable          :: step
+      integer                                       :: unit,nsubdir,i
+      integer, dimension(:), allocatable            :: step
       character(len=120)                            :: amaindir
       character(len=130)                            :: alist,string
       character(len=120), dimension(:), allocatable :: asubdir
@@ -513,7 +536,7 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,i,unit
+      integer                                :: nsubdir,i,unit
       real*8                                 :: cr,ci
       complex*16, dimension(:), allocatable  :: coeff
       character(len=120)                     :: amaindir
@@ -547,13 +570,16 @@
 !#######################################################################
 
     subroutine getcontrib(ncontrib,icontrib,amaindir,asubdir,nsubdir,&
-         ifailchk)
+         ifailchk,ista)
+
+      use expec, only: lcifilter,cifdthrsh,cifstate
 
       implicit none
 
-      integer*8                              :: ncontrib,nsubdir,i
+      integer                                :: ncontrib,nsubdir,i,ista
       integer                                :: ifailchk
-      integer*8, dimension(:), allocatable   :: icontrib
+      integer, dimension(:), allocatable     :: icontrib
+      real*8                                 :: dist
       character(len=120)                     :: amaindir
       character(len=120), dimension(nsubdir) :: asubdir
       character(len=250)                     :: filename
@@ -604,7 +630,19 @@
                afail='z'
                goto 10
             endif
-            
+
+            ! CI filtering
+            if (lcifilter) then
+               call getseamdistance(amaindir,asubdir(i),dist)
+               if (dist.lt.cifdthrsh) then
+                  if (cifstate.eq.0) then
+                     goto 10
+                  else
+                     if (ista.eq.cifstate) goto 10
+                  endif
+               endif
+            endif
+
             ncontrib=ncontrib+1
             
             ! Write the successful geometries to file
@@ -659,6 +697,66 @@
 
 !#######################################################################
 
+    subroutine getseamdistance(amaindir,asubdir,dist)
+
+      use sysdef
+      use expec
+      use intcoo
+
+      implicit none
+
+      integer                           :: k1,k2,k3,iadc,i,j,istart,&
+                                           iend
+      real*8, dimension(natm*3)         :: xcoo
+      real*8                            :: dist
+      character(len=2), dimension(natm) :: aatm
+      character(len=120)                :: amaindir
+      character(len=120)                :: asubdir,string
+      character(len=250)                :: filename
+
+!      k1=index(amaindir,'/')+1
+
+      iend=len_trim(amaindir)
+      istart=0
+      do i=3,iend
+         if (amaindir(i-2:i).eq.'../') istart=i+1
+      enddo
+      if (istart.eq.0) istart=1
+      k1=index(amaindir(istart:iend),'/')+istart
+      k2=len_trim(amaindir)
+      if (index(asubdir,'/').eq.0) then
+         k3=len_trim(asubdir)
+      else
+         k3=len_trim(asubdir)-1
+      endif
+
+      filename=trim(amaindir)//'/'//trim(asubdir) &
+           //'/adc_dav_z'//'/adc_'//amaindir(k1:k2)//'_' &
+           //asubdir(1:k3)//'_dav_z.log'
+
+      iadc=323
+      open(iadc,file=filename,form='formatted',status='old')
+
+      ! Read the Cartesian coordinates
+5     read(iadc,'(a)') string
+      if (index(string,'Angstrom').eq.0) goto 5
+      do i=1,3
+         read(iadc,*)
+      enddo
+      do i=1,natm
+         read(iadc,*) aatm(i),(xcoo(j),j=i*3-2,i*3)
+      enddo
+
+      close(iadc)
+
+      dist=x2int(xcoo)
+
+      return
+      
+    end subroutine getseamdistance
+
+!#######################################################################
+
     subroutine failgeom(amaindir,asubdir,atype)
 
       use sysdef
@@ -666,7 +764,8 @@
 
       implicit none
 
-      integer*8                         :: k1,k2,k3,iadc,i,j
+      integer                           :: k1,k2,k3,iadc,i,j,istart,&
+                                           iend
       real*8, dimension(natm*3)         :: xcoo
       character(len=2), dimension(natm) :: aatm
       character(len=2)                  :: atype
@@ -675,14 +774,28 @@
       character(len=250)                :: filename
       logical(kind=4)                   :: exists,failed
 
-      k1=index(amaindir,'/')+1
+!      k1=index(amaindir,'/')+1
+!      k2=len_trim(amaindir)
+!      if (index(asubdir,'/').eq.0) then
+!         k3=len_trim(asubdir)
+!      else
+!         k3=len_trim(asubdir)-1
+!      endif
+ 
+      iend=len_trim(amaindir)
+      istart=0
+      do i=3,iend
+         if (amaindir(i-2:i).eq.'../') istart=i+1
+      enddo
+      if (istart.eq.0) istart=1
+      k1=index(amaindir(istart:iend),'/')+istart
       k2=len_trim(amaindir)
       if (index(asubdir,'/').eq.0) then
          k3=len_trim(asubdir)
       else
          k3=len_trim(asubdir)-1
       endif
-            
+           
       filename=trim(amaindir)//'/'//trim(asubdir) &
            //'/adc_dav_'//trim(atype)//'/adc_'//amaindir(k1:k2)//'_' &
            //asubdir(1:k3)//'_dav_'//trim(atype)//'.log'
@@ -738,20 +851,35 @@
 
       implicit none
       
-      integer*8                         :: k1,k2,k3,iadc,i,j
+      integer                           :: k1,k2,k3,iadc,i,j,istart,&
+                                           iend
       real*8, dimension(natm*3)         :: xcoo
       character(len=2), dimension(natm) :: aatm
       character(len=120)                :: amaindir
       character(len=120)                :: asubdir,string
       character(len=250)                :: filename
 
-      k1=index(amaindir,'/')+1
+!      k1=index(amaindir,'/')+1
+!      k2=len_trim(amaindir)
+!      if (index(asubdir,'/').eq.0) then
+!         k3=len_trim(asubdir)
+!      else
+!         k3=len_trim(asubdir)-1
+!      endif
+
+      iend=len_trim(amaindir)
+      istart=0
+      do i=3,iend
+         if (amaindir(i-2:i).eq.'../') istart=i+1
+      enddo
+      if (istart.eq.0) istart=1
+      k1=index(amaindir(istart:iend),'/')+istart
       k2=len_trim(amaindir)
       if (index(asubdir,'/').eq.0) then
          k3=len_trim(asubdir)
       else
          k3=len_trim(asubdir)-1
-      endif
+      endif      
 
       filename=trim(amaindir)//'/'//trim(asubdir) &
            //'/adc_dav_x'//'/adc_'//amaindir(k1:k2)//'_' &
@@ -786,8 +914,8 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,unit,i
-      integer*8, dimension(nsubdir)          :: icontrib
+      integer                                :: nsubdir,unit,i
+      integer, dimension(nsubdir)            :: icontrib
       real*8, dimension(:), allocatable      :: ip
       real*8                                 :: e0
       complex*16, dimension(nsubdir)         :: coeff
@@ -837,9 +965,9 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,staindx,&
+      integer                                :: nsubdir,staindx,&
                                                 nstates_f,ifg
-      integer*8, dimension(nsubdir)          :: icontrib,step
+      integer, dimension(nsubdir)            :: icontrib,step
       real*8, dimension(:), allocatable      :: einit
       real*8, dimension(:,:), allocatable    :: tdmsq,deltae
       real*8, dimension(nsubdir)             :: ip
@@ -866,11 +994,11 @@
       
       implicit none
 
-      integer*8                              :: nsubdir,staindx,unit,&
-                                                i,c,count,k1,k2,k3,&
+      integer                                :: nsubdir,staindx,unit,&
+                                                i,j,c,count,k1,k2,k3,&
                                                 adcstate,nstates_f,&
-                                                indx
-      integer*8, dimension(nsubdir)          :: icontrib
+                                                indx,istart,iend
+      integer, dimension(nsubdir)            :: icontrib
       real*8, dimension(:), allocatable      :: einit
       real*8, dimension(:,:), allocatable    :: tdmsq,deltae
       real*8                                 :: ener,osc
@@ -915,14 +1043,28 @@
          if (icontrib(i).eq.0) cycle
 
          ! (1) Excitation energies
-         k1=index(amaindir,'/')+1
+!         k1=index(amaindir,'/')+1
+!         k2=len_trim(amaindir)
+!         if (index(asubdir(i),'/').eq.0) then
+!            k3=len_trim(asubdir(i))
+!         else
+!            k3=len_trim(asubdir(i))-1
+!         endif
+ 
+         iend=len_trim(amaindir)
+         istart=0
+         do j=3,iend
+            if (amaindir(j-2:j).eq.'../') istart=j+1
+         enddo
+         if (istart.eq.0) istart=1
+         k1=index(amaindir(istart:iend),'/')+istart
          k2=len_trim(amaindir)
          if (index(asubdir(i),'/').eq.0) then
             k3=len_trim(asubdir(i))
          else
             k3=len_trim(asubdir(i))-1
          endif
-         
+        
          filename=trim(amaindir)//'/'//trim(asubdir(i)) &
               //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
               //asubdir(i)(1:k3)//'_dav_x.log'
@@ -979,9 +1121,9 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,i,k1,k2,k3,unit,&
-                                                adcstate,count
-      integer*8, dimension(nsubdir)          :: icontrib
+      integer                                :: nsubdir,i,j,k1,k2,k3,unit,&
+                                                adcstate,count,istart,iend
+      integer, dimension(nsubdir)            :: icontrib
       real*8, dimension(nsubdir)             :: einit
       character(len=120)                     :: amaindir,string
       character(len=120), dimension(nsubdir) :: asubdir
@@ -996,7 +1138,21 @@
 
          ! (1) Read the index of the ADC sate chosen by the target
          !     matching routine
-         k1=index(amaindir,'/')+1
+!         k1=index(amaindir,'/')+1
+!         k2=len_trim(amaindir)
+!         if (index(asubdir(i),'/').eq.0) then
+!            k3=len_trim(asubdir(i))
+!         else
+!            k3=len_trim(asubdir(i))-1
+!         endif
+
+         iend=len_trim(amaindir)
+         istart=0
+         do j=3,iend
+            if (amaindir(j-2:j).eq.'../') istart=j+1
+         enddo
+         if (istart.eq.0) istart=1
+         k1=index(amaindir(istart:iend),'/')+istart
          k2=len_trim(amaindir)
          if (index(asubdir(i),'/').eq.0) then
             k3=len_trim(asubdir(i))
@@ -1069,7 +1225,7 @@
       
       implicit none
 
-      integer*8                    :: indx,nstates_f,i
+      integer                      :: indx,nstates_f,i
       real*8                       :: ener,ftmp
       real*8, dimension(nstates_f) :: deltae
       real*8, parameter            :: tol=0.0001d0
@@ -1105,9 +1261,9 @@
 
       implicit none
       
-      integer*8                              :: nsubdir,unit,i,c,k,j,&
+      integer                                :: nsubdir,unit,i,c,k,j,&
                                                 negrid,k1,k2,ifg,m,n
-      integer*8, dimension(nsubdir)          :: icontrib,step
+      integer, dimension(nsubdir)            :: icontrib,step
       real*8, dimension(3,siord-1)           :: si_e,si_f
       real*8, dimension(:), allocatable      :: xsec
       real*8, dimension(nsubdir)             :: ip,e0
@@ -1222,9 +1378,9 @@
 
       implicit none
 
-      integer*8                              :: nsubdir,i,k1,k2,k3,unit,&
-                                                adcstate,count
-      integer*8, dimension(nsubdir)          :: icontrib
+      integer                                :: nsubdir,i,j,k1,k2,k3,unit,&
+                                                adcstate,count,istart,iend
+      integer, dimension(nsubdir)            :: icontrib
       real*8, dimension(nsubdir)             :: e0
       character(len=120)                     :: amaindir,string
       character(len=120), dimension(nsubdir) :: asubdir
@@ -1239,7 +1395,21 @@
 
          ! (1) Read the index of the ADC sate chosen by the target
          !     matching routine
-         k1=index(amaindir,'/')+1
+!         k1=index(amaindir,'/')+1
+!         k2=len_trim(amaindir)
+!         if (index(asubdir(i),'/').eq.0) then
+!            k3=len_trim(asubdir(i))
+!         else
+!            k3=len_trim(asubdir(i))-1
+!         endif
+
+         iend=len_trim(amaindir)
+         istart=0
+         do j=3,iend
+            if (amaindir(j-2:j).eq.'../') istart=j+1
+         enddo
+         if (istart.eq.0) istart=1
+         k1=index(amaindir(istart:iend),'/')+istart
          k2=len_trim(amaindir)
          if (index(asubdir(i),'/').eq.0) then
             k3=len_trim(asubdir(i))
@@ -1282,9 +1452,9 @@
 
       implicit none
 
-      integer*8                            :: nsubdir,nstates_f,n,k,&
+      integer                              :: nsubdir,nstates_f,n,k,&
                                               ifg
-      integer*8, dimension(nsubdir)        :: icontrib,step
+      integer, dimension(nsubdir)          :: icontrib,step
       real*8, dimension(nsubdir)           :: ip
       real*8, dimension(nsubdir,nstates_f) :: deltae,tdmsq
       real*8                               :: tcurr,t,e,dele,delt,csq,&
@@ -1363,9 +1533,9 @@
 
       implicit none
       
-      integer*8 :: iout,i,j,k
-      real*8    :: dele,delt,e,t,func,prefac,musq,shape,deif,tcent,&
-                   tsig
+      integer :: iout,i,j,k
+      real*8  :: dele,delt,e,t,func,prefac,musq,shape,deif,tcent,&
+                 tsig
 
 !-----------------------------------------------------------------------
 ! Set the grid spacings
@@ -1457,8 +1627,8 @@
 
       implicit none
 
-      integer*8 :: iout,i,j,k,count,negrid,n
-      real*8    :: dele,delt,e,t,func,tsig,prefac,tcent
+      integer :: iout,i,j,k,count,negrid,n
+      real*8  :: dele,delt,e,t,func,tsig,prefac,tcent
 
 !-----------------------------------------------------------------------
 ! Set the grid spacings
@@ -1487,6 +1657,140 @@
       return
 
     end subroutine trtxas_total_cont
+
+!#######################################################################
+
+    subroutine rdseamfiles2
+
+      use sysdef
+      use expec
+
+      implicit none
+
+      integer                     :: unit,i,j,k
+      real*8                      :: norm,dp,b2a
+      real*8, dimension(2,natm*3) :: grad
+      character(len=2)            :: atmp
+
+!----------------------------------------------------------------------- 
+! Allocate arrays
+!-----------------------------------------------------------------------
+      allocate(cigeom(3*natm))
+      allocate(branchvec(2,3*natm))
+
+!-----------------------------------------------------------------------
+! CI geometry 
+!-----------------------------------------------------------------------
+      unit=335
+      open(unit,file=cifile,form='formatted',status='old')
+      read(unit,*)
+      read(unit,*)
+      do i=1,natm
+         read(unit,*) atmp,(cigeom(j),j=i*3-2,i*3)
+      enddo
+      close(unit)
+
+      ! Convert to a.u.
+      cigeom=cigeom/0.529177249d0
+
+!-----------------------------------------------------------------------
+! NACT vector
+!-----------------------------------------------------------------------
+      open(unit,file=hfile,form='formatted',status='old')
+      do i=1,natm
+         read(unit,*) (branchvec(1,j),j=i*3-2,i*3)
+      enddo
+      close(unit)
+
+!-----------------------------------------------------------------------
+! Gradient difference vector
+!-----------------------------------------------------------------------
+      do k=1,2
+         open(unit,file=gfile(k),form='formatted',status='old')
+         do i=1,natm
+            read(unit,*) (grad(k,j),j=i*3-2,i*3)
+         enddo
+         close(unit)
+         norm=sqrt(dot_product(grad(k,:),grad(k,:)))
+         grad(k,:)=grad(k,:)/norm
+      enddo
+      branchvec(2,:)=grad(1,:)-grad(2,:)
+
+!-----------------------------------------------------------------------
+! Output the normalised h- and g-vectors
+!-----------------------------------------------------------------------
+      open(unit,file='branchingvecs.xyz',form='formatted',&
+           status='unknown')
+      
+      b2a=0.529177249d0
+
+      write(unit,'(i2)') natm
+      write(unit,'(a)') 'h-vector'
+      norm=sqrt(dot_product(branchvec(1,:),branchvec(1,:)))
+      do i=1,natm
+         write(unit,'(a2,6(2x,F10.7))') atlbl(i),&
+              (cigeom(j)*b2a,j=i*3-2,i*3),(branchvec(1,j)/norm,j=i*3-2,i*3)
+      enddo
+
+      write(unit,'(i2)') natm
+      write(unit,'(a)') 'g-vector'
+      norm=sqrt(dot_product(branchvec(2,:),branchvec(2,:)))
+      do i=1,natm
+         write(unit,'(a2,6(2x,F10.7))') atlbl(i),&
+              (cigeom(j)*b2a,j=i*3-2,i*3),(branchvec(2,j)/norm,j=i*3-2,i*3)
+      enddo
+
+      close(unit)
+
+!-----------------------------------------------------------------------
+! Orthonormalisation
+!-----------------------------------------------------------------------
+      dp=dot_product(branchvec(2,:),branchvec(1,:))
+      branchvec(2,:)=branchvec(2,:)-dp*branchvec(1,:)/dot_product(branchvec(1,:),branchvec(1,:))
+      dp=dot_product(branchvec(2,:),branchvec(1,:))
+      branchvec(2,:)=branchvec(2,:)-dp*branchvec(1,:)/dot_product(branchvec(1,:),branchvec(1,:))
+
+      do k=1,2
+         norm=sqrt(dot_product(branchvec(k,:),branchvec(k,:)))
+         branchvec(k,:)=branchvec(k,:)/norm
+      enddo
+
+      return
+
+    end subroutine rdseamfiles2
+
+!#######################################################################
+
+    subroutine calc_projector2
+
+      use sysdef
+      use expec
+
+      implicit none
+
+      integer :: i,j,k
+
+!-----------------------------------------------------------------------
+! Allocate arrays 
+!-----------------------------------------------------------------------
+      allocate(branchproj(3*natm,3*natm))
+
+!-----------------------------------------------------------------------
+! Set up the projector onto the branching space
+!-----------------------------------------------------------------------
+      branchproj=0.0d0
+      do k=1,2
+         do i=1,3*natm
+            do j=1,3*natm
+               branchproj(i,j)=branchproj(i,j)+&
+                    branchvec(k,i)*branchvec(k,j)
+            enddo
+         enddo
+      enddo
+
+      return
+
+    end subroutine calc_projector2
 
 !#######################################################################
 

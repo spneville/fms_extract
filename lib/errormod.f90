@@ -17,7 +17,7 @@
 
       implicit none
       
-      integer*8       :: ilbl
+      integer         :: ilbl
       character(*)    :: string
       logical(kind=4) :: lopen
 

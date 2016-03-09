@@ -15,7 +15,7 @@
 
       implicit none
 
-      integer*8         :: itraj,istep,j,ntraj
+      integer           :: itraj,istep,j,ntraj
       real*8, parameter :: tol=10d-5
       complex*16        :: coe,coe2
       logical(kind=4)   :: ispop
@@ -45,7 +45,7 @@
 
       implicit none
 
-      integer*8         :: itraj,istep,ista,j,ntraj,s
+      integer           :: itraj,istep,ista,j,ntraj,s
       real*8, parameter :: tol=10d-5
       complex*16        :: coe,coe2
       logical(kind=4)   :: ispop
@@ -77,7 +77,7 @@
       
       implicit none
 
-      integer*8                 :: m,j,k,itraj,istep,ntraj,s1,s2
+      integer                   :: m,j,k,itraj,istep,ntraj,s1,s2
       real*8, dimension(3*natm) :: xcoo
       real*8                    :: dens,gammaj,gammak
       complex*16                :: im,czero,cj,ck,gjxgk
@@ -127,7 +127,7 @@
 
       implicit none
 
-      integer*8  :: m,j,k,itraj,istep
+      integer    :: m,j,k,itraj,istep
       real*8     :: x,rj,rk,pj,pk,a,pre,pi,eta,xi
       complex*16 :: gxg1d,im
 
@@ -175,7 +175,7 @@
 
       implicit none
 
-      integer*8       :: nalive,istep,i
+      integer         :: nalive,istep,i
       logical(kind=4) :: lalive
 
       nalive=0

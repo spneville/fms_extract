@@ -11,7 +11,7 @@
 
       implicit none
 
-      integer*8                           :: nspawn,nci
+      integer                             :: nspawn,nci
       real*8, dimension(:,:), allocatable :: xspawn,xci
 
 !-----------------------------------------------------------------------
@@ -42,7 +42,7 @@
 
       implicit none
 
-      integer*8                           :: unit,nspawn,i,j,k
+      integer                             :: unit,nspawn,i,j,k
       real*8, dimension(:,:), allocatable :: xspawn
 
 !-----------------------------------------------------------------------
@@ -92,7 +92,7 @@
 
       implicit none
 
-      integer*8                           :: unit,nci,i,j,k
+      integer                             :: unit,nci,i,j,k
       real*8, dimension(:,:), allocatable :: xci
       character(len=10)                   :: atmp
 
@@ -142,8 +142,8 @@
       
       implicit none
 
-      integer*8                        :: nspawn,nci,i,j,imin,nother,unit
-      integer*8, dimension(nci)        :: nmatch
+      integer                          :: nspawn,nci,i,j,imin,nother,unit
+      integer, dimension(nci)          :: nmatch
       real*8, dimension(nspawn,natm*3) :: xspawn
       real*8, dimension(nci,natm*3)    :: xci
       real*8, dimension(natm*3)        :: cigeom,spawngeom,rotx

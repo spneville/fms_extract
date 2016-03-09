@@ -13,7 +13,7 @@
       
       implicit none
       
-      integer*8          :: i,k,n,stepf
+      integer            :: i,k,n,stepf
       real*8, parameter  :: coethrsh=0.05d0
       real*8             :: coesq,talive
       complex*16         :: coe
@@ -118,7 +118,7 @@
         
       implicit none
 
-      integer*8          :: unit,i,n
+      integer            :: unit,i,n
       character(len=120) :: string
 
       ! Loop over the different template files

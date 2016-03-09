@@ -20,7 +20,7 @@
 
       implicit none
 
-      integer*8                        :: n,m,i,ibas,ibin,itmp,nalive,&
+      integer                          :: n,m,i,ibas,ibin,itmp,nalive,&
                                           iout,count
       real*8, dimension(3*natm)        :: xcoo
       real*8                           :: icoo,dens,impfunc
@@ -176,7 +176,7 @@
 
       implicit none
       
-      integer*8 :: itmp
+      integer :: itmp
 
 !-----------------------------------------------------------------------
 ! pfunc: probabilities of the internal coordinate being in each
@@ -311,7 +311,7 @@
 
       implicit none
 
-      integer*8                        :: npart,i
+      integer                          :: npart,i
       real*8, dimension(int(dgrid(4))) :: cent
       real*8                           :: a,b
 
@@ -338,7 +338,7 @@
 
       implicit none
 
-      integer*8  :: ibas,itraj,istep,j,ntraj
+      integer    :: ibas,itraj,istep,j,ntraj
       real*8     :: randm,pop
       complex*16 :: coe
 
@@ -382,7 +382,7 @@
 
       implicit none
 
-      integer*8       :: ibas,itraj,istep,j,ntraj,ista,k,s
+      integer         :: ibas,itraj,istep,j,ntraj,ista,k,s
       real*8          :: randm,pop
       complex*16      :: coe
       logical(kind=4) :: lpop
@@ -442,7 +442,7 @@
 
       implicit none
 
-      integer*8                 :: ibas,itraj,istep,i,j
+      integer                   :: ibas,itraj,istep,i,j
       real*8, dimension(3*natm) :: xcoo
       real*8                    :: rcent,sigma,dx1,dx2,rsq
 
@@ -507,8 +507,8 @@
 
       implicit none
 
-      integer*8 :: ibin
-      real*8    :: icoo
+      integer :: ibin
+      real*8  :: icoo
 
       ibin=ceiling((icoo-dgrid(1))/dgrid(3))
 
@@ -526,7 +526,7 @@
 
       implicit none
 
-      integer*8                 :: itraj,istep,ntraj,j,m
+      integer                   :: itraj,istep,ntraj,j,m
       real*8                    :: func,gxg
       real*8, dimension(3*natm) :: xcoo
       complex*16                :: cj
@@ -559,7 +559,7 @@
 
       implicit none
 
-      integer*8                        :: istep,iout,npart,i
+      integer                          :: istep,iout,npart,i
       real*8, dimension(int(dgrid(4))) :: pfunc,cent
       real*8                           :: t
 

@@ -3,7 +3,7 @@
     implicit none
 
     save
-    integer*8 :: iin,iout,ilog
+    integer :: iin,iout,ilog
 
   contains
 
@@ -13,7 +13,7 @@
 
       implicit none
 
-      integer*8       :: i,inextfree
+      integer         :: i,inextfree
       logical(kind=4) :: lopen
 
 ! N.B. Save the first 20 io units for standard files
