@@ -5,7 +5,7 @@
     integer                                       :: nmaindir,nifg,&
                                                      ne,nt,maxfunc,nfunc
     integer, dimension(:), allocatable            :: staindx,ifgindx
-    integer                                       :: failunit,okunit
+    integer                                       :: failunit,okunit,cifunit
     real*8, dimension(:,:), allocatable           :: spec,par,cnorm
     real*8, parameter                             :: eh2ev=27.2113845d0
     real*8, parameter                             :: c_au=137.03604d0
@@ -207,7 +207,7 @@
 !-----------------------------------------------------------------------
       nfunc=0
       do i=1,nmaindir
-
+         
          write(6,'(2a)') 'Processing directory: ',trim(amaindir(i))
 
          ! Get the list of timesteps/subdirectories
@@ -424,11 +424,17 @@
       character(len=120), dimension(:), allocatable :: asubdir
 
       ! Open the files containing the geometries at which the
-      ! target matching code failed/succeeded
+      ! target matching code failed/succeeded, and, if required,
+      ! the geometries filtered out due to their proximity to
+      ! an interesection seam
       failunit=55
-      okunit=56
       open(failunit,file='targfail.xyz',form='formatted',status='unknown')
+      okunit=56
       open(okunit,file='targok.xyz',form='formatted',status='unknown')
+      if (lcifilter) then
+         cifunit=57
+         open(cifunit,file='cifilter.xyz',form='formatted',status='unknown')
+      endif
 
       itmp=nstep/dstep+1
       allocate(cnorm(nifg,itmp))
@@ -458,7 +464,6 @@
             itmp=step(k)/dstep+1
             cnorm(ifg,itmp)=cnorm(ifg,itmp)+conjg(coeff(k))*coeff(k)
          enddo
-
 
       enddo
 
@@ -633,7 +638,7 @@
 
             ! CI filtering
             if (lcifilter) then
-               call getseamdistance(amaindir,asubdir(i),dist)
+               call getseamdistance(amaindir,asubdir(i),dist,ifailchk)
                if (dist.lt.cifdthrsh) then
                   if (cifstate.eq.0) then
                      goto 10
@@ -697,7 +702,7 @@
 
 !#######################################################################
 
-    subroutine getseamdistance(amaindir,asubdir,dist)
+    subroutine getseamdistance(amaindir,asubdir,dist,iwrgeom)
 
       use sysdef
       use expec
@@ -706,13 +711,14 @@
       implicit none
 
       integer                           :: k1,k2,k3,iadc,i,j,istart,&
-                                           iend
+                                           iend,iwrgeom,unit
       real*8, dimension(natm*3)         :: xcoo
       real*8                            :: dist
       character(len=2), dimension(natm) :: aatm
       character(len=120)                :: amaindir
       character(len=120)                :: asubdir,string
       character(len=250)                :: filename
+      logical                           :: lopen
 
 !      k1=index(amaindir,'/')+1
 
@@ -750,6 +756,15 @@
       close(iadc)
 
       dist=x2int(xcoo)
+
+      ! Write the Cartesian coordinates to file if we are closer than
+      ! threshold to the seam of interest
+      if (iwrgeom.eq.1.and.dist.lt.cifdthrsh) then         
+         write(cifunit,'(i2,/)') natm
+         do i=1,natm
+            write(cifunit,'(a2,3(2x,F10.7))') atlbl(i),(xcoo(j),j=i*3-2,i*3)
+         enddo
+      endif
 
       return
       
