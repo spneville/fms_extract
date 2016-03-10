@@ -1,6 +1,10 @@
-  module density
+  module density_2d
     
     implicit none
+
+    save
+
+    integer :: centdim
 
   contains
 
@@ -10,7 +14,7 @@
 !          J. Phys. Chem. A, 111, 11305 (2007)
 !#######################################################################
 
-    subroutine reddens
+    subroutine reddens_2d
 
       use trajdef
       use sysdef
@@ -20,12 +24,13 @@
 
       implicit none
 
-      integer                          :: n,m,i,ibas,ibin,itmp,nalive,&
-                                          iout,count
-      real*8, dimension(3*natm)        :: xcoo
-      real*8                           :: icoo,dens,impfunc
-      real*8, dimension(int(dgrid(4))) :: cent
-      logical(kind=4)                  :: lpop,lbound
+      integer                             :: n,m,i,ibas,itmp,nalive,&
+                                             iout,count
+      integer, dimension(2)               :: ibin
+      real*8, dimension(3*natm)           :: xcoo
+      real*8                              :: icoo,icoo2,dens,impfunc
+      real*8, dimension(:,:), allocatable :: cent
+      logical(kind=4)                     :: lpop,lbound
 
 !-----------------------------------------------------------------------
 ! Initialise arrays
@@ -37,22 +42,29 @@
 ! the g-vector, h-vector and CI geometry files and set up the projector
 ! onto the branching space
 !-----------------------------------------------------------------------
-      if (ityp.eq.-2) then
-         call rdseamfiles
-         call calc_projector
+      if (ityp.eq.-2.or.ityp2.eq.-2) then
+         write(6,'(/,2x,a)') "Seam distances are not yet supported &
+              in 2D reduced density calculations"
+!         call rdseamfiles
+!         call calc_projector
       endif
          
 !-----------------------------------------------------------------------
 ! Open output file
 !-----------------------------------------------------------------------
       iout=30
-      open(iout,file='dens.dat',form='formatted',status='unknown')
+      open(iout,file='dens2d.gnu',form='formatted',status='unknown')
+
+!-----------------------------------------------------------------------
+! Write the gnuplot file preamble
+!-----------------------------------------------------------------------
+      call wrpreamble(iout)
 
 !-----------------------------------------------------------------------
 ! Get the centres of the partitions of the internal coordinate value
 ! interval
 !-----------------------------------------------------------------------
-      call getcent(cent)
+      call getcent_2d(cent)
 
 !-----------------------------------------------------------------------
 ! Calculate the reduced density integrated over each partition of the
@@ -65,7 +77,7 @@
 
          write(6,'(2x,a3,F12.4,1x,a4)') 't =',dt*(n-1),'a.u.'
 
-         pfunc=0.0d0
+         pfunc_2d=0.0d0
 
          ! Loop over IFGs
          do i=1,nintraj
@@ -98,14 +110,15 @@
                count=count+1
                call sample_cart(ibas,i,n,xcoo)
               
-               ! Calculate the internal coordinate of interest at the
+               ! Calculate the internal coordinates of interest at the
                ! chosen current geometry
                icoo=x2int(xcoo,1)
-               
+               icoo2=x2int(xcoo,2)
+
                ! If the internal coordinate value is not contained within
                ! the user specified interval, then sample a different
                ! Cartesian geometry
-               lbound=isbound(icoo)
+               lbound=isbound_2d(icoo,icoo2)
                if (.not.lbound) then
                   if (count.gt.1000) then
 !                     goto 999
@@ -117,7 +130,7 @@
 
                ! Determine the bin that contains the internal coordinate 
                ! value 
-               ibin=getbin(icoo)
+               ibin=getbin_2d(icoo,icoo2)
                
                ! Calculate |Psi|^2 at the current geometry
                call psixpsi(dens,xcoo,i,n)
@@ -131,21 +144,17 @@
 
                ! Add the importance-function-weighted density to the current
                ! bin
-!               pfunc(ibin)=pfunc(ibin)+dens/(impfunc*nmc*nalive)
-               pfunc(ibin)=pfunc(ibin)+dens/(impfunc*nmc*nintraj)
+               pfunc_2d(ibin(1),ibin(2))=pfunc_2d(ibin(1),ibin(2))&
+                    +dens/(impfunc*nmc*nintraj)
+
             enddo
             
          enddo
-         
-         ! Check that the probabilities sum to unity
-!         sum=0.0d0
-!         do k=1,int(dgrid(4))
-!            sum=sum+pfunc(n,k)
-!         enddo
-!         print*,"SUM:",sum,"NALIVE",nalive
 
          ! Output the integrated densities at the current timestep
-         call outintdens(iout,n,pfunc,cent)
+!         call outintdens(iout,n,pfunc,cent)
+
+         call outintdens_1step(iout,n,pfunc_2d,cent)
 
       enddo
       
@@ -162,7 +171,7 @@
            this range'
       STOP
   
-    end subroutine reddens
+    end subroutine reddens_2d
 
 !#######################################################################
 ! densinit: allocates and initialises allocatable arrays used in the
@@ -171,19 +180,20 @@
 
     subroutine densinit
 
-      use expec, only: pfunc,dgrid,dstep
+      use expec, only: pfunc_2d,dgrid,dgrid2,dstep
       use sysdef, only: nstep
 
       implicit none
       
-      integer :: itmp
+      integer :: itmp1,itmp2
 
 !-----------------------------------------------------------------------
-! pfunc: probabilities of the internal coordinate being in each
-!        partition of the coordinate interval at each timestep
+! pfunc_2d: probabilities of the internal coordinate being in each
+!           partition of the coordinate interval at each timestep
 !-----------------------------------------------------------------------
-      itmp=int(dgrid(4))
-      allocate(pfunc(itmp))
+      itmp1=int(dgrid(4))
+      itmp2=int(dgrid2(4))
+      allocate(pfunc_2d(itmp1,itmp2))
 
       return
 
@@ -302,30 +312,39 @@
       
 !#######################################################################
 ! getcent: determines the centres of the partitions of the internal
-!          coordinate value interval
+!          coordinate value intervals
 !#######################################################################
 
-    subroutine getcent(cent)
+    subroutine getcent_2d(cent)
 
-      use expec, only: dgrid
+      use expec, only: dgrid,dgrid2
 
       implicit none
 
-      integer                          :: npart,i
-      real*8, dimension(int(dgrid(4))) :: cent
-      real*8                           :: a,b
+      integer                             :: npart1,npart2,i
+      real*8, dimension(:,:), allocatable :: cent
+      real*8                              :: a,b
 
-      npart=int(dgrid(4))
+      npart1=int(dgrid(4))
+      npart2=int(dgrid2(4))
+      centdim=max(npart1,npart2)
+      allocate(cent(2,centdim))
 
-      do i=1,npart
+      do i=1,npart1
          a=dgrid(1)+(i-1)*dgrid(3)
          b=dgrid(1)+i*dgrid(3)
-         cent(i)=a+0.5*(b-a)
+         cent(1,i)=a+0.5*(b-a)
+      enddo
+
+      do i=1,npart2
+         a=dgrid2(1)+(i-1)*dgrid2(3)
+         b=dgrid2(1)+i*dgrid2(3)
+         cent(2,i)=a+0.5*(b-a)
       enddo
 
       return
 
-    end subroutine getcent
+    end subroutine getcent_2d
 
 !#######################################################################
 ! select_traj: selects a trajectory index j according to the 
@@ -476,46 +495,53 @@
 
 !#######################################################################
 
-    function isbound(icoo)
+    function isbound_2d(icoo,icoo2)
       
       use expec
 
       implicit none
       
-      real*8          :: icoo,diff1,diff2
-      logical(kind=4) :: isbound
+      real*8          :: icoo,icoo2,diff1,diff2
+      logical(kind=4) :: isbound_2d
 
-      isbound=.true.
+      isbound_2d=.true.
       
+      ! Internal coordinate 1
       diff1=icoo-dgrid(1)
       diff2=dgrid(2)-icoo
-      
-      if (diff1.lt.0.or.diff2.lt.0) isbound=.false.
+      if (diff1.lt.0.or.diff2.lt.0) isbound_2d=.false.
+
+      ! Internal coordinate 2
+      diff1=icoo2-dgrid2(1)
+      diff2=dgrid2(2)-icoo2
+      if (diff1.lt.0.or.diff2.lt.0) isbound_2d=.false.
 
       return
 
-    end function isbound
+    end function isbound_2d
 
 !#######################################################################
 ! get_bin: determines the number of the partition (bin) into which
 !          the current value of the internal coordinate (icoo) falls
 !#######################################################################
 
-    function getbin(icoo) result(ibin)
+    function getbin_2d(icoo,icoo2) result(ibin)
 
       use expec
 
       implicit none
 
-      integer :: ibin
-      real*8  :: icoo
+      integer, dimension(2) :: ibin
+      real*8                :: icoo,icoo2
 
-      ibin=ceiling((icoo-dgrid(1))/dgrid(3))
+      ibin(1)=ceiling((icoo-dgrid(1))/dgrid(3))
+
+      ibin(2)=ceiling((icoo2-dgrid2(1))/dgrid2(3))      
 
       return
 
-    end function getbin
-
+    end function getbin_2d
+    
 !#######################################################################
 
     subroutine importance(func,xcoo,itraj,istep)
@@ -582,4 +608,106 @@
 
 !#######################################################################
 
-  end module density
+    subroutine outintdens_1step(iout,istep,pfunc_2d,cent)
+
+      use expec, only: dgrid,dgrid2
+      use sysdef
+
+      implicit none
+
+      integer                                         :: istep,iout,&
+                                                         n1,n2,i,j
+      real*8, dimension(int(dgrid(4)),int(dgrid2(4))) :: pfunc_2d
+      real*8, dimension(2,centdim)                    :: cent
+      real*8                                          :: t
+
+      ! Current time in fs
+      t=dt*(istep-1)/41.341375d0
+
+      write(iout,'(a,x,F8.3,x,a)') "set title ""Time :",t,"fs"""
+      write(iout,'(a)') "set autoscale z"
+      write(iout,'(a)') "set cntrparam levels auto 21"
+      write(iout,'(a,x,F8.3,x,a)') "splot ""-"" notitle w l; pause -1""",t,"fs"""
+
+      n1=int(dgrid(4))
+      n2=int(dgrid2(4))
+      do i=1,n1
+         if (i.gt.1) write(iout,*)
+         do j=1,n2
+            write(iout,*),cent(1,i),cent(2,j),pfunc_2d(i,j)
+         enddo
+      enddo
+
+      write(iout,'(/,a1)') 'e'
+
+      return
+
+    end subroutine outintdens_1step
+
+!#######################################################################
+
+    subroutine wrpreamble(iout)
+
+      use expec
+
+      implicit none
+
+      integer           :: iout,k
+      character(len=30) :: lab1,lab2
+
+      lab1=getlabel(ityp)
+      lab2=getlabel(ityp2)
+      if (lab1.eq.lab2) then
+         k=len_trim(lab1)
+         write(lab1(k+1:k+2),'(a1)') 2
+         write(lab1(k+1:k+2),'(a1)') 2
+      endif
+
+      write(iout,'(a)') "set tics out"
+      write(iout,'(a)') "set nogrid"
+      write(iout,'(a)') "set output"
+      write(iout,'(a)') "set terminal x11"
+      write(iout,'(a)') "set key top right outside"
+      write(iout,'(a)') "set nosurface"
+      write(iout,'(a)') "set contour"
+      write(iout,'(a)') "set clabel ""%10.3e"""
+      write(iout,'(a)') "set size 0.9,1.09"
+!      write(iout,'(a)') "set origin 0.,-0.05"
+      write(iout,'(a)') "set view 180,180,1,1"
+      write(iout,'(a,2(2x,a))') "set xlabel """,trim(lab1),""""
+      write(iout,'(a,2(2x,a))') "set ylabel """,trim(lab2),""""
+      write(iout,'(a)') "set cntrparam cubicspline"
+      write(iout,'(a)') "set cntrparam points 5"
+      
+      return
+
+    end subroutine wrpreamble
+
+!#######################################################################
+
+    function getlabel(i) result(lab)
+
+      implicit none
+
+      integer           :: i
+      character(len=20) :: lab
+
+      if (i.eq.1) then
+         lab='Distance'
+      else if (i.eq.2) then
+         lab='Angle'
+      else if (i.eq.3) then
+         lab='Dihedral'
+      else if (i.eq.4) then
+         lab='Twist'
+      else if (i.eq.5) then
+         lab='Pyr'
+      else if (i.eq.6) then
+         lab='Pyr2'
+      endif
+
+    end function getlabel
+
+!#######################################################################
+
+  end module density_2d

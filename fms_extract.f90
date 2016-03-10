@@ -207,6 +207,8 @@
                           cont has not been specified)'
                      call errcntrl(msg)
                   endif
+               else if (keyword(i).eq.'density_2d') then
+                  ijob=10
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -262,6 +264,53 @@
                enddo
             endif
             
+            else if (keyword(i).eq.'internal2') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2               
+               if (keyword(i).eq.'length') then
+                  ityp2=1
+                  ndef=2
+               else if (keyword(i).eq.'angle') then
+                  ityp2=2
+                  ndef=3
+               else if (keyword(i).eq.'dihedral') then
+                  ityp2=3
+                  ndef=4
+               else if (keyword(i).eq.'twist') then
+                  ityp2=4
+                  ndef=8
+               else if (keyword(i).eq.'pyr') then
+                  ityp2=5
+                  ndef=4
+               else if (keyword(i).eq.'pyr2') then
+                  ityp2=6
+                  ndef=6
+               else if (keyword(i).eq.'cartvec') then
+                  ityp2=-1
+               else if (keyword(i).eq.'seam') then
+                  ityp2=-2
+               else
+                  msg='Unknown internal coordinate type: '//trim(keyword(i))
+                  call errcntrl(msg)
+               endif
+            else
+               goto 100
+            endif
+            ! For an internal curvilinear coordinate, read indices of
+            ! the atoms entering into the definition of the given
+            ! internal coordinate
+            if (ityp2.gt.0) then
+               if (keyword(i+1).ne.',') then
+                  msg='Atom numbers for internal coordinate type '&
+                       &//trim(keyword(i))//' not given'
+                  call errcntrl(msg)
+               endif               
+               do j=1,ndef
+                  i=i+2
+                  read(keyword(i),*) iatm2(j)
+               enddo
+            endif
+
             ! For a rectilinear Cartesian vector, read the name of the
             ! xyz file containing the reference geometry and the
             ! vector
@@ -298,6 +347,30 @@
                   call errcntrl(msg)
                endif               
                dgrid(3)=(dgrid(2)-dgrid(1))/dgrid(4)
+            else
+               goto 100
+            endif
+
+         else if (keyword(i).eq.'dgrid2') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) dgrid2(1)
+               if (keyword(i+1).eq.',') then
+                  i=i+2
+                  read(keyword(i),*) dgrid2(2)
+               else
+                  msg='Internal coordinate upper bound has not been given'
+                  call errcntrl(msg)
+               endif
+               if (keyword(i+1).eq.',') then
+                  i=i+2
+                  read(keyword(i),*) dgrid2(4)
+               else
+                  msg='Number of internal coordinate partitions has not '&
+                       //'been given'
+                  call errcntrl(msg)
+               endif               
+               dgrid2(3)=(dgrid2(2)-dgrid2(1))/dgrid2(4)
             else
                goto 100
             endif
@@ -1702,6 +1775,7 @@
 
       use expec, only: ijob
       use density
+      use density_2d
       use density_mom
       use adpop
       use dysonprep
@@ -1718,7 +1792,7 @@
 ! ijob=1 <-> Adiabatic populations
 !      2 <-> Spawned geometries (do nothing here as this has already
 !            been dealt with in rdtraj)
-!      3 <-> Reduced densities in terms of internal coordinates
+!      3 <-> One-dimensional reduced densities
 !      4 <-> Preparation of input files for the calculation of Dyson
 !            orbital norms
 !      5 <-> Calculation of RMSDs between the spawn geometries and
@@ -1730,6 +1804,7 @@
 !            ADC cross-sections
 !      9 <-> Calculation of the continuum part of the TR-TXAS using 
 !            ADC cross-sections
+!     10 <-> Two-dimensional reduced densities
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -1749,6 +1824,8 @@
          call mkadcinp
       else if (ijob.eq.8.or.ijob.eq.9) then
          call adc_trtxas
+      else if (ijob.eq.10) then
+         call reddens_2d
       endif
 
       return

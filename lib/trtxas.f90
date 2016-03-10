@@ -755,7 +755,7 @@
 
       close(iadc)
 
-      dist=x2int(xcoo)
+      dist=x2int(xcoo,1)
 
       ! Write the Cartesian coordinates to file if we are closer than
       ! threshold to the seam of interest

@@ -97,13 +97,14 @@
 !-----------------------------------------------------------------------
     integer                              :: ijob,ioutgeom,nionize,&
                                             ngauss
-    integer  , dimension(10)             :: iatm
-    integer                              :: ityp,nmc,dstep,dstate
+    integer  , dimension(10)             :: iatm,iatm2
+    integer                              :: ityp,ityp2,nmc,dstep,dstate
     integer, dimension(:,:), allocatable :: iionize
     real*8, dimension(:), allocatable    :: cartvec,refgeom
-    real*8, dimension(4)                 :: dgrid
+    real*8, dimension(4)                 :: dgrid,dgrid2
     real*8, dimension(:,:), allocatable  :: adpop,gausspar
     real*8, dimension(:), allocatable    :: pfunc,ipshift
+    real*8, dimension(:,:), allocatable  :: pfunc_2d
     real*8                               :: eprobe,fwhm_e,fwhm_t
     real*8, dimension(3)                 :: egrid,tgrid
     logical(kind=4)                      :: lrenorm

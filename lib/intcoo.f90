@@ -2,6 +2,10 @@
 
     implicit none
 
+    save 
+    
+    integer, dimension(10) :: atmindx
+
   contains
 
 !#######################################################################
@@ -18,17 +22,28 @@
 !     -2 <-> Distance from a CI projected onto the branching space
 !#######################################################################
 
-    function x2int(xcoo) result(intcoo)
+    function x2int(xcoo,intnum) result(intcoo)
       
       use expec
       use sysdef
 
       implicit none
 
+      integer                   :: intnum,inttyp
       real*8, dimension(natm*3) :: xcoo
       real*8                    :: intcoo
+      
+      if (intnum.eq.1) then
+         inttyp=ityp
+         atmindx=iatm         
+      else if (intnum.eq.2) then
+         inttyp=ityp2
+         atmindx=iatm2
+      endif
 
-      select case(ityp)
+
+
+      select case(inttyp)
 
       case(1) ! Bond length
          call calc_length(xcoo,intcoo)
@@ -97,9 +112,12 @@
       
       intcoo=0.0d0
 
-      k1=iatm(1)
-      k2=iatm(2)
+!      k1=iatm(1)
+!      k2=iatm(2)
       
+      k1=atmindx(1)
+      k2=atmindx(2)
+
       do i=1,3
          intcoo=intcoo+(xcoo(k1*3-3+i)-xcoo(k2*3-3+i))**2
       enddo
@@ -126,9 +144,13 @@
 
       pi=4.0d0*datan(1.0d0)
 
-      k1=iatm(1)
-      k2=iatm(2)
-      k3=iatm(3)
+!      k1=iatm(1)
+!      k2=iatm(2)
+!      k3=iatm(3)
+     
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
 
       len1=0.0d0
       len2=0.0d0
@@ -169,10 +191,15 @@
 
       pi=4.0d0*datan(1.0d0)
 
-      k1=iatm(1)
-      k2=iatm(2)
-      k3=iatm(3)
-      k4=iatm(4)
+!      k1=iatm(1)
+!      k2=iatm(2)
+!      k3=iatm(3)
+!      k4=iatm(4)
+
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+      k4=atmindx(4)
 
       do i=1,3
          vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)
@@ -214,14 +241,23 @@
       
       pi=4.0d0*datan(1.0d0)
 
-      k1=iatm(1)
-      k2=iatm(2)
-      k3=iatm(3)
-      k4=iatm(4)
-      k5=iatm(5)
-      k6=iatm(6)
-      k7=iatm(7)
-      k8=iatm(8)
+!      k1=iatm(1)
+!      k2=iatm(2)
+!      k3=iatm(3)
+!      k4=iatm(4)
+!      k5=iatm(5)
+!      k6=iatm(6)
+!      k7=iatm(7)
+!      k8=iatm(8)
+
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+      k4=atmindx(4)
+      k5=atmindx(5)
+      k6=atmindx(6)
+      k7=atmindx(7)
+      k8=atmindx(8)
       
       len1=0.0d0
       len2=0.0d0
@@ -272,10 +308,15 @@
       
       pi=4.0d0*datan(1.0d0)
 
-      k1=iatm(1)
-      k2=iatm(2)
-      k3=iatm(3)
-      k4=iatm(4)
+!      k1=iatm(1)
+!      k2=iatm(2)
+!      k3=iatm(3)
+!      k4=iatm(4)
+
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+      k4=atmindx(4)
 
       do i=1,3
          r14(i)=xcoo(k4*3-3+i)-xcoo(k1*3-3+i)
@@ -315,12 +356,19 @@
 
       pi=4.0d0*datan(1.0d0)
 
-      k1=iatm(1)
-      k2=iatm(2)
-      k3=iatm(3)
-      k4=iatm(4)
-      k5=iatm(5)
-      k6=iatm(6)
+!      k1=iatm(1)
+!      k2=iatm(2)
+!      k3=iatm(3)
+!      k4=iatm(4)
+!      k5=iatm(5)
+!      k6=iatm(6)
+
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+      k4=atmindx(4)
+      k5=atmindx(5)
+      k6=atmindx(6)
 
       do i=1,3
          r14(i)=xcoo(k4*3-3+i)-xcoo(k1*3-3+i)
