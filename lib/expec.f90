@@ -132,4 +132,7 @@
     character(len=120)                     :: adcdir_file
     logical(kind=4)                        :: lcifilter
    
+    ! CI RMSD
+    integer, dimension(2)                  :: cirmsdsta
+
   end module expec

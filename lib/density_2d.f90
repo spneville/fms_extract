@@ -70,7 +70,7 @@
 ! Calculate the reduced density integrated over each partition of the
 ! internal coordinate interval via Monte Carlo integration
 !-----------------------------------------------------------------------
-      write(6,'(/,2x,a,/)') 'Calculating reduced densities...'
+      write(6,'(/,2x,a,/)') 'Calculating the 2D reduced densities...'
       
       ! Loop over timesteps
       do n=1,nstep,dstep
@@ -625,9 +625,11 @@
       t=dt*(istep-1)/41.341375d0
 
       write(iout,'(a,x,F8.3,x,a)') "set title ""Time :",t,"fs"""
+      write(iout,'(a)') "set key top right outside"
       write(iout,'(a)') "set autoscale z"
       write(iout,'(a)') "set cntrparam levels auto 21"
-      write(iout,'(a,x,F8.3,x,a)') "splot ""-"" notitle w l; pause -1""",t,"fs"""
+      write(iout,'(a,x,F8.3,x,a)') "splot ""-"" notitle w l; pause -1""",&
+           t,"fs"""
 
       n1=int(dgrid(4))
       n2=int(dgrid2(4))

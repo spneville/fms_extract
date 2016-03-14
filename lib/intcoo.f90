@@ -181,6 +181,7 @@
 
       use expec
       use sysdef
+      use mathlib
 
       implicit none
 
@@ -233,6 +234,7 @@
 
       use expec
       use sysdef
+      use mathlib
       
       integer                   :: i,k1,k2,k3,k4,k5,k6,k7,k8
       real*8, dimension(natm*3) :: xcoo
@@ -300,6 +302,7 @@
 
       use expec
       use sysdef
+      use mathlib
 
       integer                   :: k1,k2,k3,k4,i
       real*8, dimension(natm*3) :: xcoo
@@ -347,6 +350,7 @@
 
       use expec
       use sysdef
+      use mathlib
 
       integer                   :: k1,k2,k3,k4,k5,k6,i
       real*8, dimension(natm*3) :: xcoo
@@ -459,23 +463,6 @@
       return
 
     end subroutine calc_cart
-
-!#######################################################################
-
-    function cross_product(vec1,vec2) result(cp)
-
-      implicit none
-
-      real*8, dimension(3) :: vec1,vec2
-      real*8, dimension(3) :: cp
-
-      cp(1)=vec1(2)*vec2(3)-vec1(3)*vec2(2)
-      cp(2)=vec1(3)*vec2(1)-vec1(1)*vec2(3)
-      cp(3)=vec1(1)*vec2(2)-vec1(2)*vec2(1)
-
-      return
-
-    end function cross_product
 
 !#######################################################################
 ! minrmsd: puts the Cartesian coordinates x2 into maximum coincidence
@@ -656,11 +643,11 @@
       use sysdef
       use kabschmod
       use permutemod
-      
+      use mathlib
+
       real*8, dimension(natm*3) :: xcoo,xcurr,xmin,rotx,dvec
       real*8                    :: intcoo
 
-      ! TEMPORARY
       integer, dimension(npermute)         :: indx
       integer, dimension(natm)             :: is_perm
       integer, dimension(:,:), allocatable :: P
@@ -682,7 +669,7 @@
             do j=1,npermute
                if (pindx(j).eq.i) is_perm(i)=1
             enddo
-         enddo         
+         enddo
          ! Generate all permutations of the indices of the nuclei being
          ! permuted
          ncomb=factorial(npermute)
@@ -726,23 +713,6 @@
       
     end subroutine calc_dist_seam
 
-!#######################################################################
-
-    function factorial(num) result(fac)
-
-      implicit none
-
-      integer :: num,fac,i
-
-      fac=1
-      do i=2,num
-         fac=fac*i
-      enddo
-      
-      return
-      
-    end function factorial
-      
 !#######################################################################
 
   end module intcoo

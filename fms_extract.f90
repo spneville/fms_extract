@@ -140,6 +140,8 @@
       lcifilter=.false.
       cifstate=0
 
+      cirmsdsta=0
+
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -148,6 +150,9 @@
          write(6,'(/,2x,a,/)') 'Input file not given'
          STOP
       endif
+
+      k=index(ainp,'.inp')
+      if (k.eq.0) ainp=trim(ainp)//'.inp'
 
 !-----------------------------------------------------------------------
 ! Open input file
@@ -699,11 +704,27 @@
             else
                goto 100
             endif
-                
+            
+         else if (keyword(i).eq.'cirmsd_states') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) cirmsdsta(1)
+               if (keyword(i+1).eq.',') then
+                  i=i+2
+                  read(keyword(i),*) cirmsdsta(2)
+               else
+                  msg='Only one state index has been given with &
+                       the cirmsd_states keyword'
+                  call errcntrl(msg)
+               endif
+            else
+               goto 100
+            endif
+
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
-            call errcntrl(msg)            
+            call errcntrl(msg)
          endif
 
          ! If there are more keywords to be read on the current line,

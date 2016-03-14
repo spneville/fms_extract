@@ -760,7 +760,8 @@
       ! Write the Cartesian coordinates to file if we are closer than
       ! threshold to the seam of interest
       if (iwrgeom.eq.1.and.dist.lt.cifdthrsh) then         
-         write(cifunit,'(i2,/)') natm
+         write(cifunit,'(i2)') natm
+         write(cifunit,'(a)') trim(filename)
          do i=1,natm
             write(cifunit,'(a2,3(2x,F10.7))') atlbl(i),(xcoo(j),j=i*3-2,i*3)
          enddo
@@ -842,7 +843,8 @@
          endif
 888      continue
          if (failed) then
-            write(failunit,'(i2,/)') natm
+            write(failunit,'(i2)') natm
+            write(failunit,'(a)') trim(filename)
             do i=1,natm
                write(failunit,'(a2,3(2x,F10.7))') aatm(i),(xcoo(j),j=i*3-2,i*3)
             enddo
@@ -912,7 +914,8 @@
          read(iadc,*) aatm(i),(xcoo(j),j=i*3-2,i*3)
       enddo
 
-      write(okunit,'(i2,/)') natm
+      write(okunit,'(i2)') natm
+      write(okunit,'(a)') trim(filename)
       do i=1,natm
          write(okunit,'(a2,3(2x,F10.7))') aatm(i),(xcoo(j),j=i*3-2,i*3)
       enddo

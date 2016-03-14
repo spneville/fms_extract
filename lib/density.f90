@@ -58,7 +58,7 @@
 ! Calculate the reduced density integrated over each partition of the
 ! internal coordinate interval via Monte Carlo integration
 !-----------------------------------------------------------------------
-      write(6,'(/,2x,a,/)') 'Calculating reduced densities...'
+      write(6,'(/,2x,a,/)') 'Calculating the 1D reduced densities...'
       
       ! Loop over timesteps
       do n=1,nstep,dstep
