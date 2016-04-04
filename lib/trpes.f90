@@ -2,6 +2,11 @@
     
     implicit none
 
+    save
+
+    integer, dimension(:), allocatable  :: ifgmap
+    real*8, dimension(:,:), allocatable :: xcoo
+
   contains
 
 !#######################################################################
@@ -49,7 +54,7 @@
       character(len=120)                            :: string
 
       integer                                       :: inkw
-      integer, parameter                            :: maxkw=60
+      integer, parameter                            :: maxkw=200
       integer, dimension(maxkw)                     :: ilkw
       character(len=120), dimension(maxkw)          :: keyword
 
@@ -103,6 +108,7 @@
       use expec
       use trajdef
       use sysdef
+      use projmod
 
       implicit none
 
@@ -117,7 +123,10 @@
 
 !-----------------------------------------------------------------------
 ! Determine the number of IFGs being considered, which may be less than
-! nintraj
+! nintraj.
+!
+! N.B. here we also determine which IFG each trajectory (main directory)
+! corresponds to.
 !-----------------------------------------------------------------------
       call getnifg(nifg,nmaindir,amaindir)
 
@@ -133,6 +142,14 @@
 ! considered
 !-----------------------------------------------------------------------
       call getstaindx(staindx,nifg,nmaindir,amaindir)
+
+!-----------------------------------------------------------------------
+! CI filtering
+!-----------------------------------------------------------------------
+      if (lcifilter) then
+         call rdseamfiles2
+         call calc_projector2
+      endif
 
 !-----------------------------------------------------------------------
 ! Loop over the main trajectories (main directories), reading the
@@ -151,7 +168,11 @@
 
          ! Determine the ionization energies for each
          ! timestep/subdirectory
-         call getip(ip,amaindir(i),asubdir,nsubdir,coeff)
+         call getip(ip,amaindir(i),asubdir,nsubdir,coeff)         
+
+         ! Determine the Gaussian positions for each
+         ! timestep/subdirectory
+         if (lcifilter) call getgeom(amaindir(i),asubdir,nsubdir)
 
          ! Read the Dyson orbital norms for each ionization
          ! channel for each timestep/subdirectory
@@ -187,6 +208,11 @@
       character(len=130)                      :: ain
 
 !-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      allocate(ifgmap(nmaindir))
+
+!-----------------------------------------------------------------------
 ! Loop over the main directories, reading the ifg_number file for each
 !-----------------------------------------------------------------------
       unit=20
@@ -196,6 +222,7 @@
          open(unit,file=ain,form='formatted',status='old')
          read(unit,*) k
          cnt(k)=cnt(k)+1
+         ifgmap(i)=k
          close(unit)
       enddo
 
@@ -379,22 +406,66 @@
             STOP
          endif
 
+!         ! If we have not found a set of mrci energies, then set the
+!         ! corresponding coefficient to zero
+!999      continue
+!         coeff(i)=0.0d0
+
       enddo
 
       return
 
-!-----------------------------------------------------------------------
-! Die here if we have not found a set of mrci energies
-!-----------------------------------------------------------------------
-!999   continue
-!      csq=conjg(coeff(i))*coeff(i)
-!      if (csq.gt.1d-4) then
-!         write(6,'(/,2x,2(a,x),/)') &
-!              'mrci energies not found in the file:',trim(acolout)
-!         STOP
-!      endif
-
     end subroutine getip
+
+!#######################################################################
+
+    subroutine getgeom(amaindir,asubdir,nsubdir)
+
+      use sysdef
+      
+      implicit none
+
+      integer                                :: nsubdir,i,j,k,count,unit
+      character(len=120)                     :: amaindir,filename,&
+                                                string
+      character(len=120), dimension(nsubdir) :: asubdir
+
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      if (allocated(xcoo)) deallocate(xcoo)
+      allocate(xcoo(nsubdir,natm*3))
+      
+!-----------------------------------------------------------------------
+! Read the geom files for each subdirectory/timestep
+!-----------------------------------------------------------------------
+      unit=20
+
+      ! Loop over timesteps/subdirectories
+      do i=1,nsubdir
+         
+         filename=trim(amaindir)//'/'//trim(asubdir(i))//&
+              '/mrci_neutral/geom'
+         open(unit,file=filename,form='formatted',status='old')
+         
+         count=0
+10       read(unit,'(a)',end=20) string
+         
+         if (string(2:2).ne.'X') then
+            count=count+1
+            read(string,'(10x,3F14.8)') (xcoo(i,j),j=count*3-2,count*3)            
+         endif
+         goto 10
+
+20       continue
+
+         close(unit)
+
+      enddo
+
+      return
+
+    end subroutine getgeom
 
 !#######################################################################
 
@@ -537,13 +608,14 @@
 
       use expec
       use sysdef
+      use intcoo
 
       implicit none
 
       integer                            :: nsubdir,n,k,ista,nifg
       integer, dimension(nsubdir)        :: step
       real*8, dimension(nsubdir,nionize) :: ip,dnorm
-      real*8                             :: t,csq
+      real*8                             :: t,csq,dist
       real*8, parameter                  :: cthresh=0.01d0
       complex*16, dimension(nsubdir)     :: coeff
       logical(kind=4)                    :: linitsta
@@ -553,6 +625,20 @@
 
          ! Current time in fs
          t=(step(n)-1)*dt/41.341375d0
+
+         ! If requested, ignore the current contribution if
+         ! the 1st-order distance to the specified CI seam
+         ! is less than the threshold value
+         if (lcifilter) then
+            dist=x2int(xcoo(n,:),1)
+            if (dist.lt.cifdthrsh) then
+               if (cifstate.eq.0) then
+                  cycle
+               else
+                  if (ista.eq.cifstate) cycle
+               endif
+            endif
+         endif
 
          ! Loop over ionization channels
          do k=1,nionize

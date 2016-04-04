@@ -30,7 +30,7 @@
       implicit none
 
       integer                              :: unit,i,k,inkw,istart,iend
-      integer, parameter                   :: maxkw=60
+      integer, parameter                   :: maxkw=200
       integer, dimension(maxkw)            :: ilkw
       character(len=120)                   :: string,message
       character(len=120), dimension(maxkw) :: keyword

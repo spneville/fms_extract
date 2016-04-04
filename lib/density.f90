@@ -295,7 +295,7 @@
             enddo
          enddo
       enddo
-         
+ 
       return
       
     end subroutine calc_projector

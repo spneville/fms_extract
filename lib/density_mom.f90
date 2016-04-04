@@ -283,7 +283,7 @@
 
       integer                              :: unit,i,k
       integer                              :: inkw
-      integer, parameter                   :: maxkw=60
+      integer, parameter                   :: maxkw=200
       integer, dimension(maxkw)            :: ilkw
       real*8                               :: dp
       character(len=120), dimension(maxkw) :: keyword

@@ -76,7 +76,7 @@
       character(len=60)                    :: msg
 
       integer                              :: inkw
-      integer,   parameter                 :: maxkw=60
+      integer,   parameter                 :: maxkw=200
       integer,   dimension(maxkw)          :: ilkw
       character(len=120), dimension(maxkw) :: keyword
 
@@ -922,7 +922,7 @@
 
       integer                                      :: i,k
       integer                                      :: inkw
-      integer, parameter                           :: maxkw=60
+      integer, parameter                           :: maxkw=200
       integer, dimension(maxkw)                    :: ilkw
       character(len=120), dimension(maxkw)         :: keyword
       character(len=60)                            :: msg
