@@ -120,10 +120,10 @@
     character(len=80), dimension(2)        :: gfile
 
     ! adcprep
-    integer, dimension(3)                  :: nlines
+    integer, dimension(4)                  :: nlines
     real*8                                 :: thrsh_alive,tfinal
-    character(len=80), dimension(3)        :: adcfile
-    character(len=120), dimension(3,200)   :: adcinp
+    character(len=80), dimension(4)        :: adcfile
+    character(len=120), dimension(4,200)   :: adcinp
     logical(kind=4)                        :: ldummy
 
     ! adc_trxas

@@ -6,18 +6,19 @@
                                                      ne,nt,maxfunc,nfunc
     integer, dimension(:), allocatable            :: staindx,ifgindx
     integer                                       :: failunit,okunit,cifunit
+    integer                                       :: maxion
     real*8, dimension(:,:), allocatable           :: spec,par,cnorm
     real*8, parameter                             :: eh2ev=27.2113845d0
     real*8, parameter                             :: c_au=137.03604d0
     real*8                                        :: pi=3.14159265358979d0
     character(len=120), dimension(:), allocatable :: amaindir
-    logical                                       :: lcont,lbound
+    logical                                       :: lcont,lbound,ldyson
 
   contains
 
 !#######################################################################
 ! adc_trtxas: calculates the time-resolved transient X-ray absorption
-!             spectrum using ADC cross-section
+!             spectrum using ADC cross-sections
 !#######################################################################
 
     subroutine adc_trtxas
@@ -38,10 +39,13 @@
 !-----------------------------------------------------------------------
       lbound=.false.
       lcont=.false.
+      ldyson=.false.
       if (ijob.eq.8) then
          lbound=.true.
       else if (ijob.eq.9) then
          lcont=.true.
+      else if (ijob.eq.11) then
+         ldyson=.true.
       endif
 
 !-----------------------------------------------------------------------
@@ -196,10 +200,17 @@
          allocate(par(maxfunc,4))
          par=0.0d0
       else if (lcont) then
-!         itmp=(nstep/dstep)+1
-!         maxfunc=nmaindir*itmp*int(egrid(3))
-!         allocate(par(maxfunc,2))
-!         par=0.0d0
+         ! Do nothing as we directly fill in the spectrum array
+         ! for this case
+      else if (ldyson) then
+         ! TEMPORARY BODGE: the maximum number of ionization channels
+         ! needs to be determined from, e.g., the input vile. For now 
+         ! we set this to 200.
+         maxion=200
+         itmp=(nstep/dstep)+1
+         maxfunc=nmaindir*itmp*maxion
+         allocate(par(maxfunc,5))
+         par=0.0d0
       endif
 
 !-----------------------------------------------------------------------
@@ -233,11 +244,6 @@
          ! Read the ionisation potential for each timestep/subdirectory
          call getip_adc(ip,amaindir(i),asubdir,nsubdir,icontrib)
 
-         ! Read the excitation energies and TDMs for each 
-         ! timestep/subdirectory
-!         call rddavidson(tdmsq,amaindir(i),asubdir,nsubdir,icontrib,&
-!              staindx(i),einit,nstates_f,deltae)
-
          ! Determine the cross-sections for each timestep/subdirectory
          call getxsec(tdmsq,amaindir(i),asubdir,nsubdir,icontrib,&
               staindx(i),einit,nstates_f,deltae,ip,coeff,ifgindx(i),&
@@ -251,7 +257,7 @@
       enddo
 
 !-----------------------------------------------------------------------
-! Calculate and output the total TRPES
+! Calculate and output the total spectrum
 !-----------------------------------------------------------------------
       call trtxas_total
 
@@ -338,14 +344,6 @@
       do i=1,nsubdir
          
          if (icontrib(i).eq.0) cycle
-
-!         k1=index(amaindir,'/')+1
-!         k2=len_trim(amaindir)
-!         if (index(asubdir(i),'/').eq.0) then
-!            k3=len_trim(asubdir(i))
-!         else
-!            k3=len_trim(asubdir(i))-1
-!         endif
 
          iend=len_trim(amaindir)
          istart=0
@@ -697,8 +695,22 @@
             cycle
             
 20          continue
-            icontrib(i)=0            
-         enddo         
+            icontrib(i)=0
+         enddo
+         
+      else if (ldyson) then
+         do i=1,nsubdir
+            ! ADC Dyson orbital calculation
+            filename=trim(amaindir)//'/'//trim(asubdir(i))&
+                 //'/adc_dys/dyson_norms'
+            inquire(file=filename,exist=exists)
+            if (.not.exists) then
+               icontrib(i)=0
+            else
+               ncontrib=ncontrib+1
+            endif
+         enddo
+
       endif
 
       return
@@ -724,8 +736,6 @@
       character(len=120)                :: asubdir,string
       character(len=250)                :: filename
       logical                           :: lopen
-
-!      k1=index(amaindir,'/')+1
 
       iend=len_trim(amaindir)
       istart=0
@@ -795,14 +805,6 @@
       character(len=250)                :: filename
       logical(kind=4)                   :: exists,failed
 
-!      k1=index(amaindir,'/')+1
-!      k2=len_trim(amaindir)
-!      if (index(asubdir,'/').eq.0) then
-!         k3=len_trim(asubdir)
-!      else
-!         k3=len_trim(asubdir)-1
-!      endif
- 
       iend=len_trim(amaindir)
       istart=0
       do i=3,iend
@@ -881,14 +883,6 @@
       character(len=120)                :: asubdir,string
       character(len=250)                :: filename
 
-!      k1=index(amaindir,'/')+1
-!      k2=len_trim(amaindir)
-!      if (index(asubdir,'/').eq.0) then
-!         k3=len_trim(asubdir)
-!      else
-!         k3=len_trim(asubdir)-1
-!      endif
-
       iend=len_trim(amaindir)
       istart=0
       do i=3,iend
@@ -956,26 +950,30 @@
 !-----------------------------------------------------------------------
 ! Loop over timesteps/subdirectories and read the IP for each
 !-----------------------------------------------------------------------
-      unit=20
-      do i=1,nsubdir
-         
-         if (icontrib(i).eq.0) cycle
+      if (.not.ldyson) then
 
-         filename=trim(amaindir)//'/'//trim(asubdir(i)) &
-              //'/adc_ip/davstates.dat'
-         open(unit,file=filename,form='formatted',status='old')
+         unit=20
+         do i=1,nsubdir
+            
+            if (icontrib(i).eq.0) cycle
 
-5        read(unit,'(a)') string
-         if (index(string,'MP2 energy:').eq.0) goto 5
-         read(string,'(28x,F14.8)') e0
+            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+                 //'/adc_ip/davstates.dat'
+            open(unit,file=filename,form='formatted',status='old')
 
-10       read(unit,'(a)') string
-         if (index(string,'Energy:').eq.0) goto 10
-         read(string,'(27x,F14.8)') ip(i)
-         ip(i)=ip(i)-e0
+5           read(unit,'(a)') string
+            if (index(string,'MP2 energy:').eq.0) goto 5
+            read(string,'(28x,F14.8)') e0
 
-         close(unit)
-      enddo
+10          read(unit,'(a)') string
+            if (index(string,'Energy:').eq.0) goto 10
+            read(string,'(27x,F14.8)') ip(i)
+            ip(i)=ip(i)-e0
+
+            close(unit)
+         enddo
+      
+      endif
 
       return
 
@@ -1004,6 +1002,9 @@
       else if (lcont) then
          call rdstieltjes(amaindir,asubdir,nsubdir,icontrib,ip,&
               coeff,ifg,step,einit)
+
+      else if (ldyson) then
+         call rddysnorm(amaindir,asubdir,nsubdir,icontrib,coeff,step)
       endif
 
       return
@@ -1066,14 +1067,6 @@
          if (icontrib(i).eq.0) cycle
 
          ! (1) Excitation energies
-!         k1=index(amaindir,'/')+1
-!         k2=len_trim(amaindir)
-!         if (index(asubdir(i),'/').eq.0) then
-!            k3=len_trim(asubdir(i))
-!         else
-!            k3=len_trim(asubdir(i))-1
-!         endif
- 
          iend=len_trim(amaindir)
          istart=0
          do j=3,iend
@@ -1161,14 +1154,6 @@
 
          ! (1) Read the index of the ADC sate chosen by the target
          !     matching routine
-!         k1=index(amaindir,'/')+1
-!         k2=len_trim(amaindir)
-!         if (index(asubdir(i),'/').eq.0) then
-!            k3=len_trim(asubdir(i))
-!         else
-!            k3=len_trim(asubdir(i))-1
-!         endif
-
          iend=len_trim(amaindir)
          istart=0
          do j=3,iend
@@ -1330,7 +1315,7 @@
 ! Read in the discretised Stieltjes cross-sections
 !-----------------------------------------------------------------------
       ! Loop over timesteps/subdirectories
-      do i=1,nsubdir         
+      do i=1,nsubdir
          
          ! Cycle if the current timestep doesn't contribute
          if (icontrib(i).eq.0) cycle
@@ -1418,14 +1403,6 @@
 
          ! (1) Read the index of the ADC sate chosen by the target
          !     matching routine
-!         k1=index(amaindir,'/')+1
-!         k2=len_trim(amaindir)
-!         if (index(asubdir(i),'/').eq.0) then
-!            k3=len_trim(asubdir(i))
-!         else
-!            k3=len_trim(asubdir(i))-1
-!         endif
-
          iend=len_trim(amaindir)
          istart=0
          do j=3,iend
@@ -1464,6 +1441,77 @@
       return
 
     end subroutine get_e0
+
+!#######################################################################
+
+    subroutine rddysnorm(amaindir,asubdir,nsubdir,icontrib,coeff,step)
+
+      use sysdef
+      use expec
+
+      implicit none
+
+      integer                                :: nsubdir,i,unit
+      integer, dimension(nsubdir)            :: icontrib,step
+      real*8                                 :: e,de,norm,t,csq
+      complex*16, dimension(nsubdir)         :: coeff
+      character(len=120)                     :: amaindir
+      character(len=120), dimension(nsubdir) :: asubdir
+      character(len=250)                     :: filename
+
+!-----------------------------------------------------------------------
+! Read in the Dyson norms and vertical ionization energies
+!-----------------------------------------------------------------------
+      unit=20
+
+      ! Loop over timesteps/subdirectories
+      do i=1,nsubdir
+
+         ! Cycle if the current timestep doesn't contribute
+         if (icontrib(i).eq.0) cycle
+
+         ! Current time in fs
+         t=(step(i)-1)*dt/41.341375d0
+
+         ! Read the Dyson norm file
+         filename=trim(amaindir)//'/'//trim(asubdir(i)) &
+              //'/adc_dys/dyson_norms'
+         open(unit,file=filename,form='formatted',status='old')
+         read(unit,*)
+5        read(unit,'(3(2x,F14.8))',end=10) e,de,norm
+
+         if (de.gt.0.0d0.and.de.le.eprobe) then
+            ! Fill in the next row in the parameter array
+            nfunc=nfunc+1
+            
+            ! (1) Coefficient
+            csq=conjg(coeff(i))*coeff(i)
+            par(nfunc,1)=norm*csq
+
+            ! (2) Width parameter, energy domain
+            par(nfunc,2)=fwhm_e/2.35482d0
+            
+            ! (3) Width parameter, time domain
+            par(nfunc,3)=fwhm_t/2.35482d0
+
+            ! (4) Centre wrt E
+            par(nfunc,4)=eprobe-de
+            
+            ! (5) Centre wrt t
+            par(nfunc,5)=t
+         endif
+
+         goto 5
+
+10       continue
+
+         close(unit)
+
+      enddo
+
+      return
+
+    end subroutine rddysnorm
 
 !#######################################################################
 
@@ -1541,6 +1589,8 @@
          call trtxas_total_bound
       else if (lcont) then
          call trtxas_total_cont
+      else if (ldyson) then         
+         call trpes_adc_total
       endif
 
       return
@@ -1683,137 +1733,83 @@
 
 !#######################################################################
 
-!    subroutine rdseamfiles2
-!
-!      use sysdef
-!      use expec
-!
-!      implicit none
-!
-!      integer                     :: unit,i,j,k
-!      real*8                      :: norm,dp,b2a
-!      real*8, dimension(2,natm*3) :: grad
-!      character(len=2)            :: atmp
-!
-!!----------------------------------------------------------------------- 
-!! Allocate arrays
-!!-----------------------------------------------------------------------
-!      allocate(cigeom(3*natm))
-!      allocate(branchvec(2,3*natm))
-!
-!!-----------------------------------------------------------------------
-!! CI geometry 
-!!-----------------------------------------------------------------------
-!      unit=335
-!      open(unit,file=cifile,form='formatted',status='old')
-!      read(unit,*)
-!      read(unit,*)
-!      do i=1,natm
-!         read(unit,*) atmp,(cigeom(j),j=i*3-2,i*3)
-!      enddo
-!      close(unit)
-!
-!      ! Convert to a.u.
-!      cigeom=cigeom/0.529177249d0
-!
-!!-----------------------------------------------------------------------
-!! NACT vector
-!!-----------------------------------------------------------------------
-!      open(unit,file=hfile,form='formatted',status='old')
-!      do i=1,natm
-!         read(unit,*) (branchvec(1,j),j=i*3-2,i*3)
-!      enddo
-!      close(unit)
-!
-!!-----------------------------------------------------------------------
-!! Gradient difference vector
-!!-----------------------------------------------------------------------
-!      do k=1,2
-!         open(unit,file=gfile(k),form='formatted',status='old')
-!         do i=1,natm
-!            read(unit,*) (grad(k,j),j=i*3-2,i*3)
-!         enddo
-!         close(unit)
-!         norm=sqrt(dot_product(grad(k,:),grad(k,:)))
-!         grad(k,:)=grad(k,:)/norm
-!      enddo
-!      branchvec(2,:)=grad(1,:)-grad(2,:)
-!
-!!-----------------------------------------------------------------------
-!! Output the normalised h- and g-vectors
-!!-----------------------------------------------------------------------
-!      open(unit,file='branchingvecs.xyz',form='formatted',&
-!           status='unknown')
-!      
-!      b2a=0.529177249d0
-!
-!      write(unit,'(i2)') natm
-!      write(unit,'(a)') 'h-vector'
-!      norm=sqrt(dot_product(branchvec(1,:),branchvec(1,:)))
-!      do i=1,natm
-!         write(unit,'(a2,6(2x,F10.7))') atlbl(i),&
-!              (cigeom(j)*b2a,j=i*3-2,i*3),(branchvec(1,j)/norm,j=i*3-2,i*3)
-!      enddo
-!
-!      write(unit,'(i2)') natm
-!      write(unit,'(a)') 'g-vector'
-!      norm=sqrt(dot_product(branchvec(2,:),branchvec(2,:)))
-!      do i=1,natm
-!         write(unit,'(a2,6(2x,F10.7))') atlbl(i),&
-!              (cigeom(j)*b2a,j=i*3-2,i*3),(branchvec(2,j)/norm,j=i*3-2,i*3)
-!      enddo
-!
-!      close(unit)
-!
-!!-----------------------------------------------------------------------
-!! Orthonormalisation
-!!-----------------------------------------------------------------------
-!      dp=dot_product(branchvec(2,:),branchvec(1,:))
-!      branchvec(2,:)=branchvec(2,:)-dp*branchvec(1,:)/dot_product(branchvec(1,:),branchvec(1,:))
-!      dp=dot_product(branchvec(2,:),branchvec(1,:))
-!      branchvec(2,:)=branchvec(2,:)-dp*branchvec(1,:)/dot_product(branchvec(1,:),branchvec(1,:))
-!
-!      do k=1,2
-!         norm=sqrt(dot_product(branchvec(k,:),branchvec(k,:)))
-!         branchvec(k,:)=branchvec(k,:)/norm
-!      enddo
-!
-!      return
-!
-!    end subroutine rdseamfiles2
-!
-!!#######################################################################
-!
-!    subroutine calc_projector2
-!
-!      use sysdef
-!      use expec
-!
-!      implicit none
-!
-!      integer :: i,j,k
-!
-!!-----------------------------------------------------------------------
-!! Allocate arrays 
-!!-----------------------------------------------------------------------
-!      allocate(branchproj(3*natm,3*natm))
-!
-!!-----------------------------------------------------------------------
-!! Set up the projector onto the branching space
-!!-----------------------------------------------------------------------
-!      branchproj=0.0d0
-!      do k=1,2
-!         do i=1,3*natm
-!            do j=1,3*natm
-!               branchproj(i,j)=branchproj(i,j)+&
-!                    branchvec(k,i)*branchvec(k,j)
-!            enddo
-!         enddo
-!      enddo
-!
-!      return
-!
-!    end subroutine calc_projector2
+    subroutine trpes_adc_total
+
+      use expec
+      use sysdef
+
+      implicit none
+
+      integer :: i,j,k,iout
+      real*8  :: a,esig,tsig,tcent,ecent,e,t,dele,delt,func
+
+!-----------------------------------------------------------------------
+! Convert the energy grid back to units of eV
+!-----------------------------------------------------------------------
+      egrid(1:2)=egrid(1:2)*eh2ev
+      
+!-----------------------------------------------------------------------
+! Set the grid spacings
+!-----------------------------------------------------------------------
+      dele=(egrid(2)-egrid(1))/egrid(3)
+      delt=(tgrid(2)-tgrid(1))/tgrid(3)
+
+!-----------------------------------------------------------------------
+! Open the TRPES output file
+!-----------------------------------------------------------------------
+      iout=20
+      open(iout,file='trpes.dat',form='formatted',status='unknown')
+
+!-----------------------------------------------------------------------
+! Calculate and output the TRPES
+!-----------------------------------------------------------------------
+      do i=1,int(egrid(3))+1
+         write(iout,*)
+         do j=1,int(tgrid(3))+1
+
+            e=egrid(1)+(i-1)*dele
+            t=tgrid(1)+(j-1)*delt
+
+            ! Loop over Gaussians, summing the contributions from each
+            func=0.0d0
+            do k=1,nfunc
+               ! Set the current parameters
+               a=par(k,1)
+               esig=par(k,2)
+               tsig=par(k,3)
+               ecent=par(k,4)
+               tcent=par(k,5)
+               ! Calculate the contribution of the current Gaussian
+               func=func+a*exp(-((e-ecent)**2)/(2.0d0*esig**2))&
+                    *exp(-((t-tcent)**2)/(2.0d0*tsig**2))
+            enddo
+            ! Ouput the current photoelectron energy, time delay and
+            ! function value
+            write(iout,*) e,t,func
+         enddo
+      enddo
+
+!-----------------------------------------------------------------------
+! Close the TRPES output file
+!-----------------------------------------------------------------------
+      close(iout)
+
+!-----------------------------------------------------------------------
+! Write the gnuplot file
+!-----------------------------------------------------------------------
+      open(iout,file='trpes_dnorm.gnu',form='formatted',status='unknown')
+      write(iout,'(a)') '# ~/.gnuplot'
+      write(iout,'(a,/)') 'set palette @MATLAB'
+      write(iout,'(a)') 'set pm3d map interpolate 0,0'
+      write(iout,'(a)') 'set xlabel ''Time (fs)'''
+      write(iout,'(a)') 'set ylabel ''E (eV)'''
+      write(iout,'(a)') 'splot ''trpes.dat'''
+      write(iout,'(a)') 'pause -1'
+      close(iout)
+
+      return
+
+    end subroutine trpes_adc_total
 
 !#######################################################################
 

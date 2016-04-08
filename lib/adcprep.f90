@@ -95,7 +95,7 @@
                call wrstatenumber(asub,i,k)               
 
                ! Write the current Cartesian coordinates to the
-               ! columbus geom file               
+               ! columbus geom file
                call copygeom_adc(asub,i,k,n)
 
                ! Write the ADC input files for the current subdirectory
@@ -122,7 +122,7 @@
       character(len=120) :: string
 
       ! Loop over the different template files
-      do n=1,3
+      do n=1,4
       
          if (adcfile(n).eq.'') cycle
 

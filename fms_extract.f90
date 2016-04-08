@@ -203,6 +203,8 @@
                         ijob=8
                      else if (keyword(i).eq.'cont') then
                         ijob=9
+                     else if (keyword(i).eq.'trpes') then
+                        ijob=11
                      else
                         msg='Unknown keyword: '//trim(keyword(i))
                         call errcntrl(msg)
@@ -601,6 +603,14 @@
                goto 100
             endif
             
+         else if (keyword(i).eq.'adcfile_dys') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),'(a)') adcfile(4)
+            else
+               goto 100
+            endif
+
          else if (keyword(i).eq.'col_dummy') then
             ldummy=.true.
 
@@ -826,7 +836,8 @@
       endif
 
       if (ijob.eq.7) then
-         if (adcfile(1).eq.''.and.adcfile(2).eq.''.and.adcfile(3).eq.'') then
+         if (adcfile(1).eq.''.and.adcfile(2).eq.''.and.adcfile(3).eq.''&
+              .and.adcfile(4).eq.'') then
             msg='No ADC template files have been given'
             call errcntrl(msg)
          endif
@@ -884,6 +895,12 @@
       ! TR-TXAS
       if (ijob.eq.8.or.ijob.eq.9) then
          fwhm_t=crosscorr
+      endif
+
+      ! ADC Dyson norm TRPES
+      if (ijob.eq.11) then
+         fwhm_t=crosscorr
+         fwhm_e=en_fwhm(dtprobe)
       endif
 
       return
@@ -1843,7 +1860,7 @@
          call trpes_dnorm
       else if (ijob.eq.7) then
          call mkadcinp
-      else if (ijob.eq.8.or.ijob.eq.9) then
+      else if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.11) then
          call adc_trtxas
       else if (ijob.eq.10) then
          call reddens_2d

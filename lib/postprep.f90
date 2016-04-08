@@ -415,7 +415,7 @@
       character(len=130)             :: filename
       character(len=150)             :: dir
       character(len=1), dimension(3) :: dpl
-      character(len=3), dimension(3) :: type
+      character(len=3), dimension(4) :: type
       
 !-----------------------------------------------------------------------
 ! Determine the current Cartesian coordinates
@@ -427,7 +427,7 @@
 !-----------------------------------------------------------------------
       call getfreeunit(unit)
       
-      type(1:3)=(/ 'ip ','dav','si ' /)
+      type(1:4)=(/ 'ip ','dav','si ','dys' /)
       dpl(1:3)=(/ 'x','y','z' /)
       
 !-----------------------------------------------------------------------
@@ -459,10 +459,10 @@
          enddo
          
          ! Close the ADC input file
-         close(unit)         
+         close(unit)
       endif
 
-!-----------------------------------------------------------------------      
+!-----------------------------------------------------------------------
 ! 2 and 3: Davidson and Stieltjes
 !-----------------------------------------------------------------------
       do n=2,3
@@ -504,6 +504,38 @@
          enddo
             
       enddo
+
+!-----------------------------------------------------------------------
+! 4: Dyson
+!-----------------------------------------------------------------------
+      if (adcfile(4).ne.'') then
+         n=4
+
+         ! Make the directory
+         dir=trim(asub)//'/adc_'//trim(type(n))
+         call makedir(dir)
+
+         ! Open the ADC input file
+         call getadcfilename(filename,dir,type(n),ifg,itraj,istep,' ')
+         open(unit,file=filename,form='formatted',status='unknown')
+
+         ! Write the ADC input file
+         do i=1,nlines(n)
+            if (adcinp(n,i).eq.'$geom') then
+               ! Geometry section
+               do j=1,natm
+                  write(unit,'(a2,3(2x,F14.8))') atlbl(j),&
+                       (x(k)*0.529177249d0,k=j*3-2,j*3)
+               enddo
+            else
+               ! Everything else
+               write(unit,'(a)') trim(adcinp(n,i))
+            endif
+         enddo
+         
+         ! Close the ADC input file
+         close(unit)
+      endif
 
       return
       
@@ -600,7 +632,7 @@
          write(filename(k+1:k+10),'(a5,i6)') '_step',istep
       endif
 
-      if (type.eq.'ip') then
+      if (type.eq.'ip'.or.type.eq.'dys') then
          filename=trim(filename)//'_'//trim(type)//'.inp'
       else
          filename=trim(filename)//'_'//trim(type)//'_'//trim(dpl)//'.inp'
