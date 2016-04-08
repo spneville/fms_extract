@@ -1486,7 +1486,7 @@
             
             ! (1) Coefficient
             csq=conjg(coeff(i))*coeff(i)
-            par(nfunc,1)=norm*csq
+            par(nfunc,1)=csq*norm**2
 
             ! (2) Width parameter, energy domain
             par(nfunc,2)=fwhm_e/2.35482d0
