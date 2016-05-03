@@ -587,7 +587,7 @@
       integer                                :: ncontrib,nsubdir,i,ista
       integer                                :: ifailchk
       integer, dimension(:), allocatable     :: icontrib
-      real*8                                 :: dist
+      real*8                                 :: dist,d2
       character(len=120)                     :: amaindir
       character(len=120), dimension(nsubdir) :: asubdir
       character(len=250)                     :: filename
@@ -700,15 +700,37 @@
          
       else if (ldyson) then
          do i=1,nsubdir
-            ! ADC Dyson orbital calculation
+            ! Check whether or not the ADC Dyson orbital
+            ! calculation completed
             filename=trim(amaindir)//'/'//trim(asubdir(i))&
                  //'/adc_dys/dyson_norms'
             inquire(file=filename,exist=exists)
-            if (.not.exists) then
-               icontrib(i)=0
-            else
-               ncontrib=ncontrib+1
+            if (.not.exists) goto 30
+
+            ! Check the D2 value and ignore the contribution
+            ! if it is above, say, 0.4
+            call getd2(amaindir,asubdir(i),d2)
+            if (d2.gt.0.4) goto 30
+
+            ! CI filtering
+            if (lcifilter) then
+               call getseamdistance(amaindir,asubdir(i),dist,ifailchk)
+               if (dist.lt.cifdthrsh) then
+                  if (cifstate.eq.0) then
+                     goto 30
+                  else
+                     if (ista.eq.cifstate) goto 30
+                  endif
+               endif
             endif
+
+            ncontrib=ncontrib+1
+
+            cycle
+
+30          continue
+            icontrib(i)=0
+
          enddo
 
       endif
@@ -751,9 +773,15 @@
          k3=len_trim(asubdir)-1
       endif
 
-      filename=trim(amaindir)//'/'//trim(asubdir) &
-           //'/adc_dav_z'//'/adc_'//amaindir(k1:k2)//'_' &
-           //asubdir(1:k3)//'_dav_z.log'
+      if (ldyson) then
+         filename=trim(amaindir)//'/'//trim(asubdir) &
+              //'/adc_dys'//'/adc_'//amaindir(k1:k2)//'_' &
+              //asubdir(1:k3)//'_dys.log'
+      else
+         filename=trim(amaindir)//'/'//trim(asubdir) &
+              //'/adc_dav_z'//'/adc_'//amaindir(k1:k2)//'_' &
+              //asubdir(1:k3)//'_dav_z.log'
+      endif         
 
       iadc=323
       open(iadc,file=filename,form='formatted',status='old')
@@ -785,6 +813,51 @@
       return
       
     end subroutine getseamdistance
+
+!#######################################################################
+
+    subroutine getd2(amaindir,asubdir,d2)
+      
+      implicit none
+
+      integer            :: k1,k2,k3,iadc,i,j,istart,iend
+      real*8             :: d2
+      character(len=120) :: amaindir,asubdir,string
+      character(len=250) :: filename
+
+      iend=len_trim(amaindir)
+      istart=0
+      do i=3,iend
+         if (amaindir(i-2:i).eq.'../') istart=i+1
+      enddo
+      if (istart.eq.0) istart=1
+      k1=index(amaindir(istart:iend),'/')+istart
+      k2=len_trim(amaindir)
+      if (index(asubdir,'/').eq.0) then
+         k3=len_trim(asubdir)
+      else
+         k3=len_trim(asubdir)-1
+      endif
+
+      if (ldyson) then
+         filename=trim(amaindir)//'/'//trim(asubdir) &
+              //'/adc_dys'//'/adc_'//amaindir(k1:k2)//'_' &
+              //asubdir(1:k3)//'_dys.log'
+      endif
+
+      iadc=323
+      open(iadc,file=filename,form='formatted',status='old')
+
+5     read(iadc,'(a)') string
+      if (index(string,'D2 diagnostic').eq.0) goto 5
+
+      read(string,'(35x,F12.10)') d2
+
+      close(iadc)
+
+      return
+
+    end subroutine getd2
 
 !#######################################################################
 
@@ -1479,6 +1552,13 @@
          open(unit,file=filename,form='formatted',status='old')
          read(unit,*)
 5        read(unit,'(3(2x,F14.8))',end=10) e,de,norm
+
+!         if (norm.gt.1.0d0) then
+!            write(6,'(/,a,2x,F14.8/)') &
+!                 'Greter than unit Dyson obital norm:',norm
+!            write(6,'(/,2(a,2x),/)') 'File:',trim(filename)
+!            STOP
+!         endif
 
          if (de.gt.0.0d0.and.de.le.eprobe) then
             ! Fill in the next row in the parameter array

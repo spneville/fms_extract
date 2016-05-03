@@ -35,15 +35,6 @@
     call rdtraj(adir)
 
 !-----------------------------------------------------------------------
-! Determine whether or not a dummy atom is present (we assume that
-! this is placed at the centre of mass)
-!
-! N.B., this only works if the INPUT directory is present, so for now
-!       we will leave this as a user-specified argument
-!-----------------------------------------------------------------------
-!    call getdummy(adir(1))
-
-!-----------------------------------------------------------------------
 ! Calculate the requested expectation values
 !-----------------------------------------------------------------------
     call calc_expec
@@ -216,6 +207,9 @@
                   endif
                else if (keyword(i).eq.'density_2d') then
                   ijob=10
+               else if (keyword(i).eq.'ts-psg_prep' &
+                    .or.keyword(i).eq.'tspsg_prep') then
+                  ijob=12
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -1050,7 +1044,7 @@
 
       use trajdef
       use sysdef
-      use expec, only: lrenorm
+      use expec, only: lrenorm,ijob
 
       implicit none
 
@@ -1095,6 +1089,9 @@
          ! We also read the parent/spawn trajectory information here.
          call getspawngeom(atmp,nspawn,i)
 
+         ! If required, read the logfileCLS file
+         if (ijob.eq.12) call rdlogfilecls(atmp,nspawn+1,i)
+
          ! Clean up
          call cleanup(adir(i))
          
@@ -1110,38 +1107,6 @@
 
     end subroutine rdtraj
 
-!#######################################################################
-
-    subroutine getdummy(dir1)
-
-      use sysdef
-      use expec, only: ldummy
-      use iomod
-      
-      implicit none
-
-      integer            :: unit,i
-      character(len=80)  :: dir1
-      character(len=120) :: filename,string
-
-      filename=trim(dir1)//'INPUT/geom'
-
-      call getfreeunit(unit)
-
-      open(unit,file=filename,form='formatted',status='old')
-
-      ldummy=.false.
-      do i=1,natm
-         read(unit,'(a)') string
-         if (index(string,'X').ne.0) ldummy=.true.
-      enddo
-         
-      close(unit)
-
-      return
-      
-    end subroutine getdummy
-      
 !#######################################################################
 
     subroutine mktmpdir(currdir,atmp)
@@ -1317,6 +1282,16 @@
       if (allocated(traj(itraj)%tspawn)) deallocate(traj(itraj)%tspawn)
       allocate(traj(itraj)%tspawn(ntraj))
 
+      ! Energies at the Gaussian centres
+      if (allocated(traj(itraj)%ener)) deallocate(traj(itraj)%ener)
+      allocate(traj(itraj)%ener(ntraj,nstep,nsta))
+      traj(itraj)%ener=0.0d0
+      
+      ! NACTS at the Gaussian centres
+      if (allocated(traj(itraj)%nact)) deallocate(traj(itraj)%nact)
+      allocate(traj(itraj)%nact(ntraj,nstep,nsta,natm*3))
+      traj(itraj)%nact=0.0d0
+
 !-----------------------------------------------------------------------
 ! Expectation values
 !-----------------------------------------------------------------------
@@ -1431,7 +1406,8 @@
 10       continue
          read(unit,fmat,end=15) t,(rtmp(j),j=1,ncoo),(ptmp(j),j=1,ncoo),&
               gtmp,crtmp,citmp,dum,stmp
-         n=1+(t/dt)
+         if (mod(t,dt).ne.0.0d0) goto 10
+         n=1+int(t/dt)
          ! Positons
          traj(itraj)%r(i,n,:)=rtmp(:)
          ! Momenta
@@ -1483,6 +1459,166 @@
       return
 
     end subroutine wrfmat
+
+!#######################################################################
+
+    subroutine rdlogfilecls(currdir,ntraj,itraj)
+      
+      use expec
+      use sysdef
+      use trajdef
+
+      implicit none
+
+      integer                   :: ntraj,itraj,unit,trajnum,i,k,nproc
+      integer, dimension(ntraj) :: npnts
+      real*8                    :: ftmp
+      character(len=150)        :: currdir,string
+      character(len=170)        :: filename
+
+!-----------------------------------------------------------------------
+! Determine the no. processors used
+!-----------------------------------------------------------------------
+      unit=20      
+      filename=trim(currdir)//'/FMS.out'
+      open(unit,file=filename,form='formatted',status='old')
+      
+      nproc=1      
+1     read(unit,'(a)') string
+      if (index(string,'Slaves:').eq.0) goto 1      
+2     read(unit,'(a)') string
+      if (index(string,'Generating initial conditions').eq.0) then
+         nproc=nproc+1
+         goto 2
+      endif
+
+      close(unit)
+
+!-----------------------------------------------------------------------
+! Read the energies and NACTs at the Gaussian centres from the
+! logfileCLS files
+!-----------------------------------------------------------------------
+      do i=1,nproc
+         
+         ! Open the current logfileCLS file
+         filename=trim(currdir)//'/logfileCLS'
+         k=len_trim(filename)
+         if (i-1.lt.10.and.i-1.ne.0) then
+            write(filename(k+1:k+2),'(a1,i1)') '.',i-1
+         else if (i-1.ge.10) then
+            write(filename(k+1:k+3),'(a1,i2)') '.',i-1
+         endif
+         open(unit,file=filename,form='formatted',status='old')
+         
+         ! Read the current logfileCLS file
+         call rdlogfilecls_1file(i,unit,itraj)
+
+         ! Close the current logfileCLS file
+         close(unit)
+
+      enddo
+
+      return
+
+    end subroutine rdlogfilecls
+
+!#######################################################################
+
+    subroutine rdlogfilecls_1file(iproc,unit,itraj)
+
+      use expec
+      use sysdef
+      use trajdef
+
+      implicit none
+
+      integer                   :: iproc,unit,itraj,trajnum,istep,s1,&
+                                   s2,trajsta,currsta,i,j,k
+      real*8                    :: time,ftmp
+      real*8, dimension(3*natm) :: tmpvec
+      character(len=150)        :: string
+
+!-----------------------------------------------------------------------
+! Read to the start of where we want to be.
+!
+! Note that, depending on the number of cores used and the number of
+! trajectories spawned, some of the logfileCLS.n files may not be
+! filled in.
+!-----------------------------------------------------------------------
+5     read(unit,'(a)',end=100) string
+      if (index(string,'Dalton Summary').eq.0) goto 5
+
+
+!-----------------------------------------------------------------------
+! Read the electronic structure information
+!-----------------------------------------------------------------------
+      if (iproc.gt.1) rewind(unit)
+      
+      ! Read to the next timestep
+10    read(unit,'(a)',end=999) string
+      if (index(string,'Dalton Summary').eq.0) goto 10
+
+      ! Determine the trajectory index and skip if we
+      ! are at a centroid calculation
+      read(string,'(48x,i4)') trajnum
+      if (trajnum.lt.0) goto 10
+
+      ! Read the time
+      read(string,'(59x,F11.2)') time
+      
+      ! If we are not at a full timestep, then skip
+      if (mod(time,dt).ne.0.0d0) goto 10
+
+      ! Determine the timestep
+      istep=int(time/dt)+1
+
+      ! MRCI energies
+15    read(unit,'(a)',end=999) string
+      if (index(string,'CIUDG  Summary').eq.0) goto 15
+      k=0
+20    read(unit,'(a)') string
+      if (index(string,'Total energy:').eq.0) goto 20
+      k=k+1
+      read(string,'(30x,F16.10)') ftmp
+      traj(itraj)%ener(trajnum,istep,k)=ftmp
+      if (k.lt.nsta) goto 20
+
+      ! NACTs
+25    read(unit,'(a)',end=999) string
+      if (index(string,'NAD Summary').ne.0) then
+         ! Determine the state index
+         read(string,'(57x,i2,1x,i2)') s1,s2
+         trajsta=traj(itraj)%ista(trajnum)
+         if (trajsta.eq.s1) then
+            currsta=s2
+         else if (trajsta.eq.s2) then
+            currsta=s1
+         else
+            print*,"SOMETHING HAS GONE TERRIBLY WRONG IN rdlogfilecls_1file"
+            STOP
+         endif
+         ! Read the NACT vector
+         read(unit,*)
+         read(unit,*)
+         do i=1,natm
+            read(unit,'(15x,3F17.6)') (tmpvec(j),j=i*3-1,i*3)
+         enddo
+         traj(itraj)%nact(trajnum,istep,currsta,:)=tmpvec
+      endif
+
+      ! THIS IS AWFUL:
+      if (index(string,'Dalton').eq.0) goto 25
+      backspace(unit)
+
+      goto 10
+
+999   continue
+
+      return
+
+100   return
+
+    end subroutine rdlogfilecls_1file
 
 !#######################################################################
 
@@ -1821,6 +1957,7 @@
       use trpes
       use adcprep
       use adctas
+      use tspsgmod
 
       implicit none
 
@@ -1836,6 +1973,7 @@
 !      5 <-> Calculation of RMSDs between the spawn geometries and
 !            given conical intersection geometries
 !      6 <-> Calculation of TRPES using Dyson orbital norms
+!            calculated using columbus/superdyson
 !      7 <-> Preparation of input files for ADC absorption or
 !            photoionization cross-section calculations
 !      8 <-> Calculation of the bound part of the TR-TXAS using 
@@ -1843,6 +1981,9 @@
 !      9 <-> Calculation of the continuum part of the TR-TXAS using 
 !            ADC cross-sections
 !     10 <-> Two-dimensional reduced densities
+!     11 <-> Calculation of TRPES using Dyson orbital norms
+!            calculated using the ADC program
+!     12 <-> Preparation of input for a TS-PSG dynamics calculation
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -1864,6 +2005,8 @@
          call adc_trtxas
       else if (ijob.eq.10) then
          call reddens_2d
+      else if (ijob.eq.12) then
+         call tspsg_prep
       endif
 
       return

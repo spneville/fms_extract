@@ -15,6 +15,8 @@
                                                   tspawn
        real*8, dimension(:,:,:), allocatable   :: r,p
        real*8, dimension(:,:), allocatable     :: phase
+       real*8, dimension(:,:,:), allocatable   :: ener
+       real*8, dimension(:,:,:,:), allocatable :: nact
        complex*16, dimension(:,:), allocatable :: coe
     end type trajectory
 
