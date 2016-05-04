@@ -1477,6 +1477,11 @@
       character(len=170)        :: filename
 
 !-----------------------------------------------------------------------
+! Check that nadtype=1 has been set in col.inp
+!-----------------------------------------------------------------------
+!         call checknadtype(currdir)
+
+!-----------------------------------------------------------------------
 ! Determine the no. processors used
 !-----------------------------------------------------------------------
       unit=20      
@@ -1498,8 +1503,8 @@
 ! Read the energies and NACTs at the Gaussian centres from the
 ! logfileCLS files
 !-----------------------------------------------------------------------
-      do i=1,nproc
-         
+      do i=1,nproc         
+
          ! Open the current logfileCLS file
          filename=trim(currdir)//'/logfileCLS'
          k=len_trim(filename)
@@ -1521,6 +1526,51 @@
       return
 
     end subroutine rdlogfilecls
+
+!#######################################################################
+
+    subroutine checknadtype(currdir)
+
+      use parsemod
+
+      implicit none
+
+      integer                              :: inkw,unit,nadtype
+      integer,   parameter                 :: maxkw=200
+      integer,   dimension(maxkw)          :: ilkw
+      character(len=120), dimension(maxkw) :: keyword
+      character(len=150)                   :: currdir
+      character(len=170)                   :: filename
+
+!-----------------------------------------------------------------------
+! Open the col.inp file
+!-----------------------------------------------------------------------
+      unit=25
+      filename=trim(currdir)//'/col.inp'
+      open(unit,file=filename,form='formatted',status='old')
+
+!-----------------------------------------------------------------------
+! Determine what nadtype has been set to
+!-----------------------------------------------------------------------
+10    call rdinp(unit,keyword,inkw,ilkw)
+      if (keyword(1).ne.'nadtype') goto 10
+
+      read(keyword(3),*) nadtype
+
+      if (nadtype.ne.1) then
+         write(6,'(/,2x,a)') 'nadtype is not set to 1 in col.inp'
+         write(6,'(2x,a,/)') 'This is incompatible with TS-PSG input &
+              generation'
+         STOP
+      endif      
+
+!-----------------------------------------------------------------------
+! Close the col.inp file
+!-----------------------------------------------------------------------
+
+      return
+
+    end subroutine checknadtype
 
 !#######################################################################
 
