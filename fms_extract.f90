@@ -1598,7 +1598,6 @@
 5     read(unit,'(a)',end=100) string
       if (index(string,'Dalton Summary').eq.0) goto 5
 
-
 !-----------------------------------------------------------------------
 ! Read the electronic structure information
 !-----------------------------------------------------------------------
@@ -1651,7 +1650,7 @@
          read(unit,*)
          read(unit,*)
          do i=1,natm
-            read(unit,'(15x,3F17.6)') (tmpvec(j),j=i*3-1,i*3)
+            read(unit,'(15x,3F17.6)') (tmpvec(j),j=i*3-2,i*3)
          enddo
          traj(itraj)%nact(trajnum,istep,currsta,:)=tmpvec
       endif
