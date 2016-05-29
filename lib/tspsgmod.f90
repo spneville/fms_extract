@@ -123,7 +123,14 @@
 
       ! No. electronic states
       write(unit) nsta
-      
+
+      ! Masses
+      do i=1,natm
+         do j=1,3
+            write(unit) atmass(i)
+         enddo
+      enddo
+
       ! Frozen Gaussian widths
       write(unit) alpha(1:natm*3)
 
