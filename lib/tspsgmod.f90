@@ -4,9 +4,11 @@
     
     save
     
-    integer                              :: maxbas,maxbas2,basdim,nsample
-    integer, dimension(:), allocatable   :: nbas,nbas2
-    integer, dimension(:,:), allocatable :: indx
+    integer                                   :: maxbas,maxbas2,basdim,&
+                                                 nsample,maxdrop
+    integer, dimension(:), allocatable        :: nbas,nbas2,ndrop
+    integer, dimension(:,:), allocatable      :: indx,colldrop
+    complex*16, dimension(:,:,:), allocatable :: smat
     
   contains
 
@@ -15,7 +17,8 @@
     subroutine tspsg_prep
 
       use sysdef
-
+      use expec
+      
       implicit none
 
 !-----------------------------------------------------------------------
@@ -25,9 +28,20 @@
 
 !-----------------------------------------------------------------------
 ! Prune the basis according to the overlap criterion in order to avoid
-! linear dependencies in the sample basis
+! linear dependencies in the sample basis.
+!
+! For the moment, if Lowdin's canonical orthogonlisation of the basis
+! is to be performed, then set ovrthrsh s.t. all basis functions are
+! sampled.
 !-----------------------------------------------------------------------
+      if (bastype.eq.2) ovrthrsh=1.0d0
+
       call prune_basis
+
+!-----------------------------------------------------------------------
+! Lowdin's canonical orthogonalisation of the Gaussian basis
+!-----------------------------------------------------------------------
+      if (bastype.eq.2) call lowdin_ortho
       
 !-----------------------------------------------------------------------
 ! Write the TS-PSG basis file
@@ -102,12 +116,12 @@
 
       use trajdef
       use sysdef
+      use expec, only: ovrthrsh
       use gausstools
       
-      integer           :: itraj,n,ntraj,istep,ista,k
+      integer           :: itraj,n,ntraj,istep,ista,k,i
       integer           :: ifgnum,trajnum,stepnum
       real*8            :: tspawn,tkill
-      real*8, parameter :: ovrthrsh=0.75d0
       complex*16        :: ovr
       logical           :: laccept
       
@@ -172,29 +186,11 @@
          
       enddo
 
-      return
-      
-    end subroutine prune_basis
-      
-!#######################################################################
-
-    subroutine wrbasfile
-
-      use trajdef
-      use sysdef
-
-      implicit none
-
-      integer                               :: unit,itraj,ntraj,n,&
-                                               istep,tspawn,tkill,&
-                                               ista,i,j
-      real*8, dimension(:,:,:), allocatable :: r,p
-      real*8, dimension(:,:), allocatable   :: phase
-
 !-----------------------------------------------------------------------
 ! Determine the no. of sampled basis functions per electronic state
 !-----------------------------------------------------------------------
       allocate(nbas2(nsta))
+
       nbas2=0
       do i=1,nsample
          itraj=indx(i,1)
@@ -205,7 +201,28 @@
 
       ! Maximum no. of sampled basis functions over electronic states
       maxbas2=maxval(nbas2)
+      
+      return
+      
+    end subroutine prune_basis
+      
+!#######################################################################
 
+    subroutine wrbasfile
+
+      use trajdef
+      use sysdef
+      use expec
+
+      implicit none
+
+      integer                               :: unit,itraj,ntraj,n,&
+                                               istep,tspawn,tkill,&
+                                               ista,i,j
+      real*8, dimension(:,:,:), allocatable :: r,p
+      real*8, dimension(:,:), allocatable   :: phase
+      logical                               :: lowdin
+      
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
@@ -237,6 +254,14 @@
 !-----------------------------------------------------------------------
 ! Write the basis file
 !-----------------------------------------------------------------------
+      ! Lowdin canonical orthogonalisation flag
+      if (bastype.eq.2) then
+         lowdin=.true.
+      else
+         lowdin=.false.
+      endif
+      write(unit) lowdin
+      
       ! No. nuclear coordinates
       write(unit) natm*3
 
@@ -272,6 +297,24 @@
 
       enddo
 
+      ! Lowdin canonical orthogonalisation coefficients
+      if (lowdin) then
+
+         ! Numbers of dropped basis functions
+         write(unit) ndrop
+
+         ! Expansion coefficients
+         do i=1,nsta
+            write(unit) smat(i,1:nbas2(i),ndrop(i)+1:nbas2(i))
+         enddo
+
+         ! Indices of the dropped collocation points
+         do i=1,nsta
+            write(unit) colldrop(i,1:ndrop(i))
+         enddo
+            
+      endif
+      
 !-----------------------------------------------------------------------
 ! Close the basis file
 !-----------------------------------------------------------------------
@@ -283,11 +326,19 @@
 ! N.B., This really should also be written to a log file for future
 ! reference
 !-----------------------------------------------------------------------
-      write(6,'(/,a)') 'Number of sampled basis functions:'
+      write(6,'(/,a)') 'Number of sampled Gaussian basis functions:'
       do i=1,nsta
          write(6,'(a5,x,i2,a1,x,i6)') 'State',i,':',nbas2(i)
       enddo
 
+      if (lowdin) then
+         write(6,'(/,a)') 'Number of (Lowdin) orthogonalised basis &
+              functions:'
+         do i=1,nsta
+            write(6,'(a5,x,i2,a1,x,i6)') 'State',i,':',nbas2(i)-ndrop(i)
+         enddo
+      endif
+         
 !-----------------------------------------------------------------------
 ! Deallocate arrays
 !-----------------------------------------------------------------------
@@ -352,10 +403,6 @@
          ! NACTs
          write(unit) nact(i,1:nbas2(i),:,:)
 
-!         do n=1,nbas2(i)
-!            print*,i,n,nact(i,n,:,:)
-!         enddo
-         
       enddo
 
 !-----------------------------------------------------------------------
@@ -373,6 +420,273 @@
 
     end subroutine wrhamfile
 
+!#######################################################################
+
+    subroutine lowdin_ortho
+
+      use sysdef
+      use trajdef
+      use gausstools
+      use errormod
+      
+      implicit none
+
+      integer                               :: i,j,k,sta1,sta2,ifg1,&
+                                               ifg2,traj1,traj2,step1,&
+                                               step2,dim,lwork,info,&
+                                               itmp
+      integer, dimension(nsta)              :: count1,count2
+      integer, dimension(:), allocatable    :: sortindx
+      real*8, dimension(:), allocatable     :: rwork,contrib
+      real*8, dimension(:,:), allocatable   :: lambda
+      real*8, parameter                     :: eigthrsh=1e-5
+      complex*16, dimension(:), allocatable :: work
+      character(len=120)                    :: errmsg
+      
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      allocate(smat(nsta,maxbas2,maxbas2))
+      smat=(0.0d0,0.0d0)
+
+      allocate(lambda(nsta,maxbas2))
+      lambda=0.0d0
+
+      allocate(ndrop(nsta))
+      ndrop=0
+      
+!-----------------------------------------------------------------------
+! Calculate the overlap matrices for each electronic state
+!-----------------------------------------------------------------------
+      count1=0
+      do i=1,nsample
+
+         ifg1=indx(i,1)
+         traj1=indx(i,2)
+         step1=indx(i,3)
+         sta1=traj(ifg1)%ista(traj1)
+         count1(sta1)=count1(sta1)+1
+
+         count2=0
+         do j=1,nsample
+            
+            ifg2=indx(j,1)
+            traj2=indx(j,2)
+            step2=indx(j,3)
+            sta2=traj(ifg2)%ista(traj2)
+            count2(sta2)=count2(sta2)+1
+            
+            ! Skip if the two sampled basis functions do not correspond
+            ! to the same electronic state
+            if (sta1.ne.sta2) cycle
+
+            ! Calculate the current overlap integral
+            smat(sta1,count1(sta1),count2(sta1))=&
+                 overlap_general(ifg1,ifg2,traj1,traj2,step1,step2)
+
+         enddo
+         
+      enddo
+
+!-----------------------------------------------------------------------
+! Diagonalise the overlap matrix for each electronic state
+!-----------------------------------------------------------------------
+      do i=1,nsta
+
+         ! Set dimensions and allocate arrays
+         dim=nbas2(i)
+         lwork=max(1,2*dim-1)
+         itmp=max(1,3*dim-2)
+         allocate(work(lwork))
+         allocate(rwork(itmp))
+
+         ! Diagonalise the current overlap matrix
+         call zheev('V','U',dim,smat(i,1:dim,1:dim),dim,&
+              lambda(i,1:dim),work,lwork,rwork,info)
+         if (info.ne.0) then
+            errmsg=''
+            write(errmsg,'(a,x,i2)') 'Diagonlisation of the overlap &
+                 matrix failed for state ',i
+            call errcntrl(errmsg)
+         endif
+
+         ! Deallocate arrays
+         deallocate(work,rwork)
+         
+      enddo
+
+!-----------------------------------------------------------------------
+! Determine the number of basis functions to drop for each electronic
+! state
+!-----------------------------------------------------------------------
+      do i=1,nsta
+         do j=1,nbas2(i)
+            if (lambda(i,j).ge.eigthrsh) exit
+            if (lambda(i,j).lt.eigthrsh) ndrop(i)=ndrop(i)+1            
+         enddo
+      enddo
+
+!-----------------------------------------------------------------------
+! Normalise the new set of basis functions
+!-----------------------------------------------------------------------
+      ! Loop over electronic states
+      do i=1,nsta
+
+         ! Loop over the new basis functions for the current
+         ! electronic state (omitting the dropped basis functions)
+         do j=ndrop(i)+1,nbas2(i)
+            smat(i,1:nbas2(i),j)=smat(i,1:nbas2(i),j)/sqrt(lambda(i,j))
+         enddo
+
+      enddo
+
+!-----------------------------------------------------------------------
+! Determine which collocation points are to be dropped
+!
+! Currently, we drop the points corresponding to the Gaussians that
+! contribute the least to the retained Lowdin orthogonalised basis
+! functions
+!-----------------------------------------------------------------------
+      maxdrop=maxval(ndrop)
+      allocate(colldrop(nsta,maxdrop))
+      colldrop=0
+
+      ! Loop over electronic states
+      do i=1,nsta
+
+         ! Allocate arrays
+         allocate(contrib(nbas2(i)))
+         allocate(sortindx(nbas2(i)))
+                  
+         ! Loop over the sampled Gaussian basis functions
+         contrib=0.0d0
+         do k=1,nbas2(i)
+            ! Loop over the RETAINED orthogonalised basis functions
+            do j=1,ndrop(i)+1,nbas2(i)
+               contrib(k)=contrib(k)+real(conjg(smat(i,k,j))*smat(i,k,j))
+            enddo
+         enddo
+
+         ! Sort the contribution vector
+         call dsortindxa1('A',nbas2(i),contrib,sortindx)
+
+         ! Save the indices of the collocation points to drop
+         do j=1,ndrop(i)
+            colldrop(i,j)=sortindx(j)
+         enddo
+
+         ! Deallocate arrays
+         deallocate(contrib,sortindx)
+         
+      enddo
+      
+      return
+      
+    end subroutine lowdin_ortho
+
+!#######################################################################
+
+    subroutine dsortindxa1(order,ndim,arrin,sortindx)
+      
+      implicit none
+
+      character(1), intent(in)                :: order
+      integer, intent(in)                     :: ndim
+      real*8, dimension(ndim), intent(in)     :: arrin
+      integer, dimension(ndim), intent(inout) :: sortindx
+    
+      integer                                 :: i,l,ir,sortindxt,j
+      real*8                                  :: q
+
+!!$ The subroutine is taken from the NR p233, employs heapsort.
+
+      do i= 1,ndim
+         sortindx(i)=i
+      enddo
+      
+      l=ndim/2+1
+      ir=ndim
+    
+      if (order.eq.'D') then
+       
+10       continue
+         if (l.gt.1) then
+            l=l-1
+            sortindxt=sortindx(l)
+            q=arrin(sortindxt)
+         else
+            sortindxt=sortindx(ir)
+            q=arrin(sortindxt)
+            sortindx(ir)=sortindx(1)
+            ir=ir-1
+            if (ir.eq.1) then
+               sortindx(1)=sortindxt
+               return
+            endif
+         endif
+       
+         i=l
+         j=l+l
+       
+20       if (j.le.ir) then
+            if (j.lt.ir) then
+               if (arrin(sortindx(j)).gt.arrin(sortindx(j+1))) j=j+1 !
+            endif
+            if (q.gt.arrin(sortindx(j))) then !
+               sortindx(i)=sortindx(j)
+               i=j
+               j=j+j
+            else
+               j=ir+1
+            endif
+            goto 20
+         endif
+         sortindx(i)=sortindxt
+         goto 10
+       
+      else if (order.eq.'A') then
+       
+100      continue
+      if (l.gt.1) then
+         l=l-1
+         sortindxt=sortindx(l)
+         q=arrin(sortindxt)
+      else
+         sortindxt=sortindx(ir)
+         q=arrin(sortindxt)
+         sortindx(ir)=sortindx(1)
+         ir=ir-1
+         if(ir .eq. 1) then
+            sortindx(1)=sortindxt
+            return
+         end if
+      end if
+      
+      i=l
+      j=l+l
+      
+200   if(j .le. ir) then
+         if(j .lt. ir) then
+            if(arrin(sortindx(j)) .lt. arrin(sortindx(j+1))) j=j+1 !
+         end if
+         if(q .lt. arrin(sortindx(j))) then !
+            sortindx(i)=sortindx(j)
+            i=j
+            j=j+j
+         else
+            j=ir+1
+         end if
+         go to 200
+      end if
+      sortindx(i)=sortindxt
+      go to 100
+      
+   end if
+   
+   return
+   
+  end subroutine dsortindxa1
+    
 !#######################################################################
 
   end module tspsgmod

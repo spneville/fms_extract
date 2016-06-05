@@ -133,6 +133,9 @@
 
       cirmsdsta=0
 
+      ovrthrsh=0.75d0
+      bastype=1
+      
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -725,6 +728,29 @@
                goto 100
             endif
 
+         else if (keyword(i).eq.'tspsg_basis') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               if (keyword(i).eq.'gaussian') then
+                  bastype=1
+               else if (keyword(i).eq.'lowdin') then
+                  bastype=2
+               else
+                  msg='Unknown TS-PSG basis type: '//trim(keyword(i))
+                  call errcntrl(msg)
+               endif
+            else
+               goto 100
+            endif
+
+         else if (keyword(i).eq.'ovrthrsh') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),*) ovrthrsh
+            else
+               goto 100
+            endif
+            
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))

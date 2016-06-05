@@ -135,4 +135,8 @@
     ! CI RMSD
     integer, dimension(2)                  :: cirmsdsta
 
+    ! TS-PSG prep.
+    integer                                :: bastype
+    real*8                                 :: ovrthrsh
+    
   end module expec
