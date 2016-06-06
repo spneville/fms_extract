@@ -1427,6 +1427,7 @@
          read(unit,*)
          read(unit,'(F10.2)') t
          traj(itraj)%tspawn(i)=int(t/dt)+1
+!         print*,t,dt
          backspace(unit)
 
 10       continue

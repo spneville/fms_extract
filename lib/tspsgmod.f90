@@ -4,9 +4,9 @@
     
     save
     
-    integer                                   :: maxbas,maxbas2,basdim,&
+    integer                                   :: maxbas,maxbas_trim,basdim,&
                                                  nsample,maxdrop
-    integer, dimension(:), allocatable        :: nbas,nbas2,ndrop
+    integer, dimension(:), allocatable        :: nbas,nbas_trim,ndrop
     integer, dimension(:,:), allocatable      :: indx,colldrop
     complex*16, dimension(:,:,:), allocatable :: smat
     
@@ -93,8 +93,8 @@
             ista=traj(itraj)%ista(n)
             ! Loop over timesteps
             do istep=1,nstep
-               if (istep.lt.tspawn) cycle
-               if (istep.gt.tkill) cycle
+               if (istep.le.tspawn) cycle
+               if (istep.ge.tkill) cycle
                nbas(ista)=nbas(ista)+1
             enddo
          enddo
@@ -154,8 +154,8 @@
 
                ! Skip if the current basis function is either yet
                ! to spawn or is dead
-               if (istep.lt.tspawn) cycle
-               if (istep.gt.tkill) cycle
+               if (istep.le.tspawn) cycle
+               if (istep.ge.tkill) cycle
 
                ! Check the overlaps of the current basis function with
                ! the already sampled basis functions
@@ -189,18 +189,18 @@
 !-----------------------------------------------------------------------
 ! Determine the no. of sampled basis functions per electronic state
 !-----------------------------------------------------------------------
-      allocate(nbas2(nsta))
+      allocate(nbas_trim(nsta))
 
-      nbas2=0
+      nbas_trim=0
       do i=1,nsample
          itraj=indx(i,1)
          n=indx(i,2)
          ista=traj(itraj)%ista(n)
-         nbas2(ista)=nbas2(ista)+1
+         nbas_trim(ista)=nbas_trim(ista)+1
       enddo
 
       ! Maximum no. of sampled basis functions over electronic states
-      maxbas2=maxval(nbas2)
+      maxbas_trim=maxval(nbas_trim)
       
       return
       
@@ -226,23 +226,23 @@
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
-      allocate(r(nsta,maxbas2,natm*3))
-      allocate(p(nsta,maxbas2,natm*3))
-      allocate(phase(nsta,maxbas2))
+      allocate(r(nsta,maxbas_trim,natm*3))
+      allocate(p(nsta,maxbas_trim,natm*3))
+      allocate(phase(nsta,maxbas_trim))
 
 !-----------------------------------------------------------------------
 ! Set up the state-specific basis arrays
 !-----------------------------------------------------------------------
-      nbas2=0
+      nbas_trim=0
       do i=1,nsample
          itraj=indx(i,1)
          n=indx(i,2)
          istep=indx(i,3)
          ista=traj(itraj)%ista(n)
-         nbas2(ista)=nbas2(ista)+1
-         r(ista,nbas2(ista),:)=traj(itraj)%r(n,istep,:)
-         p(ista,nbas2(ista),:)=traj(itraj)%p(n,istep,:)
-         phase(ista,nbas2(ista))=traj(itraj)%phase(n,istep)         
+         nbas_trim(ista)=nbas_trim(ista)+1
+         r(ista,nbas_trim(ista),:)=traj(itraj)%r(n,istep,:)
+         p(ista,nbas_trim(ista),:)=traj(itraj)%p(n,istep,:)
+         phase(ista,nbas_trim(ista))=traj(itraj)%phase(n,istep)         
       enddo
 
 !-----------------------------------------------------------------------
@@ -278,22 +278,22 @@
       ! Frozen Gaussian widths
       write(unit) alpha(1:natm*3)
 
-      ! No. basis functions per electronic state
+      ! No. sampled basis functions per electronic state
       do i=1,nsta
-         write(unit) nbas2(i)
+         write(unit) nbas_trim(i)
       enddo
 
       ! Basis function parameters
       do i=1,nsta
       
          ! Positions
-         write(unit) r(i,1:nbas2(i),1:natm*3)
+         write(unit) r(i,1:nbas_trim(i),1:natm*3)
 
          ! Momenta
-         write(unit) p(i,1:nbas2(i),1:natm*3)
+         write(unit) p(i,1:nbas_trim(i),1:natm*3)
 
          ! Phases
-         write(unit) phase(i,1:nbas2(i))
+         write(unit) phase(i,1:nbas_trim(i))
 
       enddo
 
@@ -305,7 +305,7 @@
 
          ! Expansion coefficients
          do i=1,nsta
-            write(unit) smat(i,1:nbas2(i),ndrop(i)+1:nbas2(i))
+            write(unit) smat(i,1:nbas_trim(i),ndrop(i)+1:nbas_trim(i))
          enddo
 
          ! Indices of the dropped collocation points
@@ -328,14 +328,14 @@
 !-----------------------------------------------------------------------
       write(6,'(/,a)') 'Number of sampled Gaussian basis functions:'
       do i=1,nsta
-         write(6,'(a5,x,i2,a1,x,i6)') 'State',i,':',nbas2(i)
+         write(6,'(a5,x,i2,a1,x,i6)') 'State',i,':',nbas_trim(i)
       enddo
 
       if (lowdin) then
          write(6,'(/,a)') 'Number of (Lowdin) orthogonalised basis &
               functions:'
          do i=1,nsta
-            write(6,'(a5,x,i2,a1,x,i6)') 'State',i,':',nbas2(i)-ndrop(i)
+            write(6,'(a5,x,i2,a1,x,i6)') 'State',i,':',nbas_trim(i)-ndrop(i)
          enddo
       endif
          
@@ -375,21 +375,21 @@
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
-      allocate(ener(nsta,maxbas2,nsta))
-      allocate(nact(nsta,maxbas2,nsta,natm*3))
+      allocate(ener(nsta,maxbas_trim,nsta))
+      allocate(nact(nsta,maxbas_trim,nsta,natm*3))
 
 !-----------------------------------------------------------------------
 ! Set up the state-specific basis arrays
 !-----------------------------------------------------------------------
-      nbas2=0
+      nbas_trim=0
       do i=1,nsample
          itraj=indx(i,1)
          n=indx(i,2)
          istep=indx(i,3)
          ista=traj(itraj)%ista(n)
-         nbas2(ista)=nbas2(ista)+1
-         ener(ista,nbas2(ista),:)=traj(itraj)%ener(n,istep,:)
-         nact(ista,nbas2(ista),:,:)=traj(itraj)%nact(n,istep,:,:)
+         nbas_trim(ista)=nbas_trim(ista)+1
+         ener(ista,nbas_trim(ista),:)=traj(itraj)%ener(n,istep,:)
+         nact(ista,nbas_trim(ista),:,:)=traj(itraj)%nact(n,istep,:,:)
       enddo
       
 !-----------------------------------------------------------------------
@@ -398,10 +398,10 @@
       do i=1,nsta
 
          ! Energies
-         write(unit) ener(i,1:nbas2(i),:)
+         write(unit) ener(i,1:nbas_trim(i),:)
 
          ! NACTs
-         write(unit) nact(i,1:nbas2(i),:,:)
+         write(unit) nact(i,1:nbas_trim(i),:,:)
 
       enddo
 
@@ -446,10 +446,10 @@
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
-      allocate(smat(nsta,maxbas2,maxbas2))
+      allocate(smat(nsta,maxbas_trim,maxbas_trim))
       smat=(0.0d0,0.0d0)
 
-      allocate(lambda(nsta,maxbas2))
+      allocate(lambda(nsta,maxbas_trim))
       lambda=0.0d0
 
       allocate(ndrop(nsta))
@@ -494,7 +494,7 @@
       do i=1,nsta
 
          ! Set dimensions and allocate arrays
-         dim=nbas2(i)
+         dim=nbas_trim(i)
          lwork=max(1,2*dim-1)
          itmp=max(1,3*dim-2)
          allocate(work(lwork))
@@ -520,7 +520,7 @@
 ! state
 !-----------------------------------------------------------------------
       do i=1,nsta
-         do j=1,nbas2(i)
+         do j=1,nbas_trim(i)
             if (lambda(i,j).ge.eigthrsh) exit
             if (lambda(i,j).lt.eigthrsh) ndrop(i)=ndrop(i)+1            
          enddo
@@ -534,8 +534,8 @@
 
          ! Loop over the new basis functions for the current
          ! electronic state (omitting the dropped basis functions)
-         do j=ndrop(i)+1,nbas2(i)
-            smat(i,1:nbas2(i),j)=smat(i,1:nbas2(i),j)/sqrt(lambda(i,j))
+         do j=ndrop(i)+1,nbas_trim(i)
+            smat(i,1:nbas_trim(i),j)=smat(i,1:nbas_trim(i),j)/sqrt(lambda(i,j))
          enddo
 
       enddo
@@ -555,20 +555,20 @@
       do i=1,nsta
 
          ! Allocate arrays
-         allocate(contrib(nbas2(i)))
-         allocate(sortindx(nbas2(i)))
+         allocate(contrib(nbas_trim(i)))
+         allocate(sortindx(nbas_trim(i)))
                   
          ! Loop over the sampled Gaussian basis functions
          contrib=0.0d0
-         do k=1,nbas2(i)
+         do k=1,nbas_trim(i)
             ! Loop over the RETAINED orthogonalised basis functions
-            do j=1,ndrop(i)+1,nbas2(i)
+            do j=1,ndrop(i)+1,nbas_trim(i)
                contrib(k)=contrib(k)+real(conjg(smat(i,k,j))*smat(i,k,j))
             enddo
          enddo
 
          ! Sort the contribution vector
-         call dsortindxa1('A',nbas2(i),contrib,sortindx)
+         call dsortindxa1('A',nbas_trim(i),contrib,sortindx)
 
          ! Save the indices of the collocation points to drop
          do j=1,ndrop(i)
