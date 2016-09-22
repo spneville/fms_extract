@@ -119,6 +119,8 @@
 
       adcdir_file=''
 
+      tdmmask=1
+
       gamma=0.0d0
       
       siord=0
@@ -208,11 +210,17 @@
                           cont has not been specified)'
                      call errcntrl(msg)
                   endif
+
                else if (keyword(i).eq.'density_2d') then
                   ijob=10
+
                else if (keyword(i).eq.'ts-psg_prep' &
                     .or.keyword(i).eq.'tspsg_prep') then
                   ijob=12
+
+               else if (keyword(i).eq.'adc_trxps') then
+                  ijob=13
+
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -654,6 +662,29 @@
                goto 100
             endif
 
+         else if (keyword(i).eq.'tdm') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               tdmmask=0
+31             continue
+               if (keyword(i).eq.'x') then
+                  tdmmask(1)=1
+               else if (keyword(i).eq.'y') then
+                  tdmmask(2)=1
+               else if (keyword(i).eq.'z') then
+                  tdmmask(3)=1
+               else
+                  msg='Unknown tdm component: '//trim(keyword(i))
+                  call errcntrl(msg)
+               endif
+               if (keyword(i+1).eq.',') then
+                  i=i+2
+                  goto 31
+               endif
+            else
+               goto 100
+            endif
+
          else if (keyword(i).eq.'hfile') then
             if (keyword(i+1).eq.'=') then
                i=i+2
@@ -863,7 +894,7 @@
          endif
       endif
       
-      if (ijob.eq.8.or.ijob.eq.9) then
+      if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.11) then
          if (adcdir_file.eq.'') then
             msg='The name of the ADC directory file has not been given'
             call errcntrl(msg)
@@ -893,6 +924,33 @@
          endif
       endif
 
+      if (ijob.eq.13) then
+         if (adcdir_file.eq.'') then
+            msg='The name of the ADC directory file has not been given'
+            call errcntrl(msg)
+         endif
+         if (egrid(1).eq.-999) then
+            msg='Bounds on the photoelectron energy have not been given'
+            call errcntrl(msg)
+         endif
+         if (tgrid(1).eq.-999) then
+            msg='Bounds on the pump-probe delay have not been given'
+            call errcntrl(msg)
+         endif
+         if (crosscorr.eq.0.0d0) then
+            msg='Pump/probe cross correlation not given'
+            call errcntrl(msg)
+         endif
+         if (eprobe.eq.0) then
+            msg='Probe energy not given'
+            call errcntrl(msg)
+         endif
+         if (siord.eq.0) then
+            msg='The Stieltjes imaging order has not been given'
+            call errcntrl(msg)
+         endif
+      endif
+
 !-----------------------------------------------------------------------
 ! If the job type is the calculation of a TRPES, then:
 !
@@ -912,8 +970,8 @@
          fwhm_e=en_fwhm(dtprobe)
       endif
 
-      ! TR-TXAS
-      if (ijob.eq.8.or.ijob.eq.9) then
+      ! TRXAS or TRXPS
+      if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.13) then
          fwhm_t=crosscorr
       endif
 
@@ -2032,7 +2090,7 @@
       use cirmsd
       use trpes
       use adcprep
-      use adctas
+      use adcspec
       use tspsgmod
 
       implicit none
@@ -2052,14 +2110,15 @@
 !            calculated using columbus/superdyson
 !      7 <-> Preparation of input files for ADC absorption or
 !            photoionization cross-section calculations
-!      8 <-> Calculation of the bound part of the TR-TXAS using 
+!      8 <-> Calculation of the bound part of the TRXAS using 
 !            ADC cross-sections
-!      9 <-> Calculation of the continuum part of the TR-TXAS using 
+!      9 <-> Calculation of the continuum part of the TRXAS using 
 !            ADC cross-sections
 !     10 <-> Two-dimensional reduced densities
 !     11 <-> Calculation of TRPES using Dyson orbital norms
 !            calculated using the ADC program
 !     12 <-> Preparation of input for a TS-PSG dynamics calculation
+!     13 <-> Calculation of the TRXPS using ADC cross-sections
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -2077,8 +2136,8 @@
          call trpes_dnorm
       else if (ijob.eq.7) then
          call mkadcinp
-      else if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.11) then
-         call adc_trtxas
+      else if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.11.or.ijob.eq.13) then
+         call adc_spec
       else if (ijob.eq.10) then
          call reddens_2d
       else if (ijob.eq.12) then

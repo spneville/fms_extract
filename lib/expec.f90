@@ -129,6 +129,7 @@
     ! adc_trxas
     real*8                                 :: gamma,cifdthrsh
     integer                                :: siord,cifstate
+    integer, dimension(3)                  :: tdmmask
     character(len=120)                     :: adcdir_file
     logical(kind=4)                        :: lcifilter
    
