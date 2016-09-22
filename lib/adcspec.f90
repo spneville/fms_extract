@@ -13,7 +13,7 @@
     real*8                                        :: pi=3.14159265358979d0
     character(len=120), dimension(:), allocatable :: amaindir
     logical                                       :: lcont,lbound,&
-                                                     lxps,ldyson
+                                                     ldyson
 
   contains
 
@@ -28,10 +28,6 @@
 !
 !                              2 Time-resolved photoelectron spectra
 !                                using Dyson orbital norms
-!
-!                              3 Time-resolved X-ray photoelectron
-!                                spectra using ADC/Stieltjes imaging
-!                                photoionisation cross-sections
 !#######################################################################
 
     subroutine adc_spec
@@ -48,7 +44,6 @@
       lbound=.false.
       lcont=.false.
       ldyson=.false.
-      lxps=.false.
       if (ijob.eq.8) then
          lbound=.true.
          write(6,'(/,70a)') ('-',i=1,70)
@@ -66,12 +61,6 @@
          write(6,'(/,70a)') ('-',i=1,70)
          write(6,'(12x,a)') 'Calculating the TRPES using ADC &
               Dyson orbital norms'
-         write(6,'(70a)') ('-',i=1,70)
-      else if (ijob.eq.13) then
-         lxps=.true.
-         write(6,'(/,70a)') ('-',i=1,70)
-         write(6,'(12x,a)') 'Calculating the TRXPS using ADC &
-              cross-sections'
          write(6,'(70a)') ('-',i=1,70)
       endif
 
@@ -238,9 +227,6 @@
          maxfunc=nmaindir*itmp*maxion
          allocate(par(maxfunc,5))
          par=0.0d0
-      else if (lxps) then
-         ! Do nothing as we directly fill in the spectrum array
-         ! for this case
       endif
 
 !-----------------------------------------------------------------------
@@ -699,7 +685,7 @@
             
          enddo
 
-      else if (lcont.or.lxps) then
+      else if (lcont) then
          do i=1,nsubdir
             ! IP-ADC calculation
             filename=trim(amaindir)//'/'//trim(asubdir(i))//'/adc_ip/davstates.dat'
@@ -1119,11 +1105,6 @@
          
          call rddysnorm(amaindir,asubdir,nsubdir,icontrib,coeff,step)
 
-      else if (lxps) then
-
-         call rdstieltjes_xps(amaindir,asubdir,nsubdir,icontrib,ip,&
-              coeff,ifg,step,einit)
-
       endif
 
       return
@@ -1299,7 +1280,7 @@
             filename=trim(amaindir)//'/'//trim(asubdir(i)) &
                  //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
                  //asubdir(i)(1:k3)//'_dav_x.log'
-         else if (lcont.or.lxps) then
+         else if (lcont) then
             filename=trim(amaindir)//'/'//trim(asubdir(i)) &
                  //'/adc_si_x/adc_'//amaindir(k1:k2)//'_' &
                  //asubdir(i)(1:k3)//'_si_x.log'
@@ -1509,127 +1490,6 @@
 
 !#######################################################################
 
-    subroutine rdstieltjes_xps(amaindir,asubdir,nsubdir,icontrib,ip,&
-         coeff,ifg,step,einit)
-      
-      use expec
-      use sysdef
-      use mcsplinemod
-
-      implicit none
-      
-      integer                                :: nsubdir,unit,i,c,k,j,&
-                                                negrid,k1,k2,ifg,m,n
-      integer, dimension(nsubdir)            :: icontrib,step
-      real*8, dimension(3,siord-1)           :: si_e,si_f
-      real*8, dimension(:), allocatable      :: xsec
-      real*8, dimension(nsubdir)             :: ip,e0
-      real*8                                 :: csq,t,ipactual
-      real*8, dimension(:), allocatable      :: einit
-      real*8, dimension(3)                   :: ediffgrid
-      complex*16, dimension(nsubdir)         :: coeff
-      character(len=120), dimension(nsubdir) :: asubdir
-      character(len=120)                     :: amaindir
-      character(len=1), dimension(3)         :: dpllbl
-      character(len=250)                     :: filename
-
-      real*8 :: tsig,tcurr
-
-!-----------------------------------------------------------------------
-! Initialisation of various things
-!-----------------------------------------------------------------------
-      unit=20
-      dpllbl=(/ 'x','y','z' /)
-
-      ! Vertical excitation energies corresponding to the
-      ! grid of photoelectron kinetic energies
-      ediffgrid(1)=(eprobe/eh2ev)-egrid(1)
-      ediffgrid(2)=(eprobe/eh2ev)-egrid(2)
-      ediffgrid(3)=egrid(3)
-
-!-----------------------------------------------------------------------
-! Allocate arrays
-!-----------------------------------------------------------------------
-      negrid=int(egrid(3))
-      allocate(xsec(negrid))
-
-      if (allocated(einit)) deallocate(einit)
-      allocate(einit(nsubdir))
-      einit=0.0d0
-
-!-----------------------------------------------------------------------
-! Read the initial state energies for each timestep/subdirectory
-!-----------------------------------------------------------------------
-      call get_einit(nsubdir,icontrib,amaindir,asubdir,einit)
-
-!-----------------------------------------------------------------------
-! Read the ground state energies for each timestep/subdirectory
-!-----------------------------------------------------------------------
-      call get_e0(nsubdir,icontrib,amaindir,asubdir,e0)
-
-!-----------------------------------------------------------------------
-! Read in the discretised Stieltjes cross-sections
-!-----------------------------------------------------------------------
-      ! Loop over timesteps/subdirectories
-      do i=1,nsubdir
-
-         ! Cycle if the current timestep doesn't contribute
-         if (icontrib(i).eq.0) cycle
-         
-         ! Current time in fs
-         tcurr=(step(i)-1)*dt/41.341375d0
-
-         ! Read the Stieltjes imaging cross-sections
-         do c=1,3
-            filename=trim(amaindir)//'/'//trim(asubdir(i)) &
-                 //'/adc_si_'//dpllbl(c)//'/xsec_order'
-            k=len_trim(filename)
-            if (siord.lt.10) then
-               write(filename(k+1:k+3),'(a2,i1)') '00',siord
-            else 
-               write(filename(k+1:k+3),'(a1,i2)') '0',siord
-            endif
-            open(unit,file=filename,form='formatted',status='old')
-            do j=1,siord-1
-               read(unit,*) si_e(c,j),si_f(c,j)
-            enddo
-            close(unit)
-         enddo
-
-         ! Interpolate to determine the cross-sections at the energy 
-         ! grid points
-         xsec=0.0d0
-         ipactual=ip(i)-(einit(i)-e0(i))
-         call interpolate_stieltjes(si_e,si_f,xsec,negrid,siord,&
-              ediffgrid,ipactual)
-
-          xsec=xsec*(3.0d0/2.0d0)*4.0d0*pi/c_au
-
-          ! Fill in the spectrum
-          nfunc=nfunc+1         
-          k1=(nfunc-1)*negrid+1
-          k2=nfunc*negrid
-
-          csq=conjg(coeff(i))*coeff(i)
-
-          tsig=fwhm_t/2.35482d0
-          do m=1,int(egrid(3))
-             do n=1,int(tgrid(3))
-                t=tgrid(1)+(n-1)*((tgrid(2)-tgrid(1))/tgrid(3))
-                spec(m,n)=spec(m,n)+(1.0d0/real(nifg)) &
-                     * csq*xsec(m)/cnorm(ifg,i) &
-                     * exp(-((t-tcurr)**2)/(2.0d0*tsig**2))
-             enddo
-          enddo
-          
-      enddo
-
-      return
-
-    end subroutine rdstieltjes_xps
-
-!#######################################################################
-
     subroutine get_e0(nsubdir,icontrib,amaindir,asubdir,e0)
 
       implicit none
@@ -1670,7 +1530,7 @@
             filename=trim(amaindir)//'/'//trim(asubdir(i)) &
                  //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
                  //asubdir(i)(1:k3)//'_dav_x.log'
-         else if (lcont.or.lxps) then
+         else if (lcont) then
             filename=trim(amaindir)//'/'//trim(asubdir(i)) &
                  //'/adc_si_x/adc_'//amaindir(k1:k2)//'_' &
                  //asubdir(i)(1:k3)//'_si_x.log'            
@@ -1847,8 +1707,6 @@
          call trtxas_total_cont
       else if (ldyson) then         
          call trpes_adc_total
-      else if (lxps) then
-         call trxps_total
       endif
 
       return
@@ -2068,46 +1926,6 @@
       return
 
     end subroutine trpes_adc_total
-
-!#######################################################################
-
-    subroutine trxps_total
-
-      use expec
-      use sysdef
-
-      implicit none
-
-      integer :: iout,i,j,k,count,negrid,n
-      real*8  :: dele,delt,e,t,func,tsig,prefac,tcent
-
-!-----------------------------------------------------------------------
-! Set the grid spacings
-!-----------------------------------------------------------------------
-      dele=(egrid(2)-egrid(1))/egrid(3)
-      delt=(tgrid(2)-tgrid(1))/tgrid(3) 
-
-!-----------------------------------------------------------------------
-! Open the TR-TXAS output file
-!-----------------------------------------------------------------------
-      iout=20
-      open(iout,file='trxps.dat',form='formatted',status='unknown')
-
-!-----------------------------------------------------------------------
-! Calculate and output the TR-TXAS
-!-----------------------------------------------------------------------
-      do i=1,int(egrid(3))
-         write(iout,*)
-         do j=1,int(tgrid(3))
-            e=egrid(1)+(i-1)*dele
-            t=tgrid(1)+(j-1)*delt
-            write(iout,*) e*eh2ev,t,spec(i,j)            
-         enddo
-      enddo
-
-      return
-
-    end subroutine trxps_total
 
 !#######################################################################
 

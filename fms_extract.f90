@@ -218,9 +218,6 @@
                     .or.keyword(i).eq.'tspsg_prep') then
                   ijob=12
 
-               else if (keyword(i).eq.'adc_trxps') then
-                  ijob=13
-
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -924,33 +921,6 @@
          endif
       endif
 
-      if (ijob.eq.13) then
-         if (adcdir_file.eq.'') then
-            msg='The name of the ADC directory file has not been given'
-            call errcntrl(msg)
-         endif
-         if (egrid(1).eq.-999) then
-            msg='Bounds on the photoelectron energy have not been given'
-            call errcntrl(msg)
-         endif
-         if (tgrid(1).eq.-999) then
-            msg='Bounds on the pump-probe delay have not been given'
-            call errcntrl(msg)
-         endif
-         if (crosscorr.eq.0.0d0) then
-            msg='Pump/probe cross correlation not given'
-            call errcntrl(msg)
-         endif
-         if (eprobe.eq.0) then
-            msg='Probe energy not given'
-            call errcntrl(msg)
-         endif
-         if (siord.eq.0) then
-            msg='The Stieltjes imaging order has not been given'
-            call errcntrl(msg)
-         endif
-      endif
-
 !-----------------------------------------------------------------------
 ! If the job type is the calculation of a TRPES, then:
 !
@@ -968,11 +938,6 @@
          ! (2) Gaussian broadening parameters
          fwhm_t=crosscorr
          fwhm_e=en_fwhm(dtprobe)
-      endif
-
-      ! TRXAS or TRXPS
-      if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.13) then
-         fwhm_t=crosscorr
       endif
 
       ! ADC Dyson norm TRPES
@@ -2118,7 +2083,6 @@
 !     11 <-> Calculation of TRPES using Dyson orbital norms
 !            calculated using the ADC program
 !     12 <-> Preparation of input for a TS-PSG dynamics calculation
-!     13 <-> Calculation of the TRXPS using ADC cross-sections
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -2136,7 +2100,7 @@
          call trpes_dnorm
       else if (ijob.eq.7) then
          call mkadcinp
-      else if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.11.or.ijob.eq.13) then
+      else if (ijob.eq.8.or.ijob.eq.9.or.ijob.eq.11) then
          call adc_spec
       else if (ijob.eq.10) then
          call reddens_2d
