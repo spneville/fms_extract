@@ -138,6 +138,8 @@
       ovrthrsh=0.75d0
       bastype=1
       
+      gamessfile=''
+      
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -217,6 +219,9 @@
                else if (keyword(i).eq.'ts-psg_prep' &
                     .or.keyword(i).eq.'tspsg_prep') then
                   ijob=12
+
+               else if (keyword(i).eq.'gamess_prep') then
+                  ijob=13
 
                else
                   msg='Unknown job type: '//trim(keyword(i))
@@ -775,6 +780,21 @@
             if (keyword(i+1).eq.'=') then
                i=i+2
                read(keyword(i),*) ovrthrsh
+            else
+               goto 100
+            endif
+
+         else if (keyword(i).eq.'gamessfiles') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               ngamessinp=0
+40             continue
+               ngamessinp=ngamessinp+1
+               read(keyword(i),'(a)') gamessfile(ngamessinp)
+               if (keyword(i+1).eq.',') then
+                  i=i+2
+                  goto 40
+               endif
             else
                goto 100
             endif
@@ -2057,6 +2077,7 @@
       use adcprep
       use adcspec
       use tspsgmod
+      use gamessprep
 
       implicit none
 
@@ -2083,6 +2104,8 @@
 !     11 <-> Calculation of TRPES using Dyson orbital norms
 !            calculated using the ADC program
 !     12 <-> Preparation of input for a TS-PSG dynamics calculation
+!     13 <-> Preparation of input for GAMESS/ORMAS X-ray absorption
+!            cross-section calculations
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -2106,6 +2129,8 @@
          call reddens_2d
       else if (ijob.eq.12) then
          call tspsg_prep
+      else if (ijob.eq.13) then
+         call mkgamessinp
       endif
 
       return

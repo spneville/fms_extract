@@ -140,4 +140,10 @@
     integer                                :: bastype
     real*8                                 :: ovrthrsh
     
+    ! gamessprep
+    integer                                :: ngamessinp
+    integer, dimension(20)                 :: ngmslines
+    character(len=120), dimension(20,200)  :: gmsinp
+    character(len=80), dimension(20)       :: gamessfile
+
   end module expec

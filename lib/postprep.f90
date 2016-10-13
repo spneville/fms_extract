@@ -350,7 +350,7 @@
 ! Columbus, neutral
 !-----------------------------------------------------------------------
       unit=20
-      ageom=trim(asub)//'/geom'      
+      ageom=trim(asub)//'/geom'
       open(unit,file=ageom,form='formatted',status='unknown')
 
       if (ldummy) then
@@ -641,6 +641,63 @@
       return
 
     end subroutine getadcfilename
+
+!#######################################################################
+
+    subroutine wrgamessinp(asub,ifg,itraj,istep)
+
+      use sysdef
+      use trajdef
+      use expec
+      use iomod
+      
+      implicit none
+
+      integer                   :: ifg,itraj,istep,unit,n,i,j,k
+      real*8, dimension(natm*3) :: x
+      character(len=120)        :: asub
+      character(len=170)        :: filename
+
+!-----------------------------------------------------------------------
+! Determine the current Cartesian coordinates
+!-----------------------------------------------------------------------
+      call currgeom(x,ifg,itraj,istep)
+
+!-----------------------------------------------------------------------
+! Write the GAMESS input files
+!-----------------------------------------------------------------------
+      call getfreeunit(unit)
+
+      ! Loop over GAMESS input files
+      do n=1,ngamessinp
+
+         ! Open the current file
+         filename=trim(asub)//'/gamess/'//trim(gamessfile(n))
+         open(unit,file=filename,form='formatted',status='unknown')
+         
+         ! Write to the current file
+         do i=1,ngmslines(n)
+            if (index(gmsinp(n,i),'$geom').ne.0) then               
+               ! Geometry section
+               do j=1,natm
+                  write(unit,'(1x,a2,F4.1,3(2x,F14.8))') &
+                       atlbl(j),atnum(j),&
+                       (x(k)*0.529177249d0,k=j*3-2,j*3)
+               enddo
+            else
+               ! Everything else
+               write(unit,'(a)') trim(gmsinp(n,i))
+            endif
+         enddo
+
+         ! Close the current file
+         close(unit)
+
+      enddo
+
+      return
+
+    end subroutine wrgamessinp
 
 !#######################################################################
 

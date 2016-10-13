@@ -221,8 +221,8 @@
       else if (ldyson) then
          ! TEMPORARY BODGE: the maximum number of ionization channels
          ! needs to be determined from, e.g., the input file. For now 
-         ! we set this to 200.
-         maxion=200
+         ! we set this to 300.
+         maxion=300
          itmp=(nstep/dstep)+1
          maxfunc=nmaindir*itmp*maxion
          allocate(par(maxfunc,5))
@@ -845,14 +845,17 @@
       character(len=250) :: filename
 
       iend=len_trim(amaindir)
+      
       !istart=0
       !do i=3,iend
       !   if (amaindir(i-2:i).eq.'../') istart=i+1
       !enddo
       !if (istart.eq.0) istart=1
       !k1=index(amaindir(istart:iend),'/')+istart
+      
       k1=index(amaindir,'/ifg')+1
-      k2=len_trim(amaindir)
+      
+       k2=len_trim(amaindir)
       if (index(asubdir,'/').eq.0) then
          k3=len_trim(asubdir)
       else
@@ -1589,6 +1592,7 @@
          read(unit,*)
 5        read(unit,'(3(2x,F14.8))',end=10) e,de,norm
 
+!         ! Norm check
 !         if (norm.gt.1.0d0) then
 !            write(6,'(/,a,2x,F14.8/)') &
 !                 'Greter than unit Dyson obital norm:',norm
@@ -1600,6 +1604,14 @@
             ! Fill in the next row in the parameter array
             nfunc=nfunc+1
             
+            ! Exit if we are about to go out of bounds
+            if (nfunc.gt.maxfunc) then
+               write(6,'(/,2x,/)') 'The maximum no. functions &
+                    has been exceeded. Please change maxion in the &
+                    code accordingly.'
+               STOP
+            endif
+
             ! (1) Coefficient
             csq=conjg(coeff(i))*coeff(i)
             par(nfunc,1)=csq*norm**2
@@ -1617,7 +1629,9 @@
             par(nfunc,5)=t
          endif
 
-         goto 5
+         ! Go to the next IP-ADC(2) state if we are still
+         ! within the ionization window
+         if (de.le.eprobe) goto 5
 
 10       continue
 
