@@ -81,10 +81,11 @@
                call system('mkdir '//trim(asub)//'/columbus')
                call system('mkdir '//trim(asub)//'/gamess')
                call system('mkdir '//trim(asub)//'/superdyson')
+               call system('mkdir '//trim(asub)//'/sdprep')
 
                ! Write the current Cartesian coordinates to the
                ! Columbus geom file
-               call copygeom_adc(asub,i,k,n)
+               call copygeom_gamess(asub,i,k,n)
                
                ! Write the GAMESS input files
                call wrgamessinp(asub,i,k,n)

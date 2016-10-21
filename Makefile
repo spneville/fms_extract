@@ -35,7 +35,8 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/mcspline.f90 \
      $(MODPATH)/adcspec.f90 \
      $(MODPATH)/tspsgmod.f90 \
-     $(MODPATH)/gamessprep.f90
+     $(MODPATH)/gamessprep.f90 \
+     $(MODPATH)/gamesstrxas.f90
 
 ########################################################################
 # Compilation

@@ -139,6 +139,8 @@
       bastype=1
       
       gamessfile=''
+
+      gmsdir_file=''
       
 !-----------------------------------------------------------------------
 ! Read input file name
@@ -222,6 +224,9 @@
 
                else if (keyword(i).eq.'gamess_prep') then
                   ijob=13
+                  
+               else if (keyword(i).eq.'gamess_trxas') then
+                  ijob=14
 
                else
                   msg='Unknown job type: '//trim(keyword(i))
@@ -798,6 +803,14 @@
             else
                goto 100
             endif
+
+         else if (keyword(i).eq.'gamess_dir_file') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),'(a)') gmsdir_file
+            else
+               goto 100
+            endif
             
          else
             ! Exit if the keyword is not recognised
@@ -917,7 +930,7 @@
             call errcntrl(msg)
          endif
          if (egrid(1).eq.-999) then
-            msg='Bounds on the photoelectron energy have not been given'
+            msg='The energy bounds have not been given'
             call errcntrl(msg)
          endif
          if (tgrid(1).eq.-999) then
@@ -937,6 +950,29 @@
       if (ijob.eq.9) then
          if (siord.eq.0) then
             msg='The Stieltjes imaging order has not been given'
+            call errcntrl(msg)
+         endif
+      endif
+
+      if (ijob.eq.14) then
+         if (gmsdir_file.eq.'') then
+            msg='The gamess directory file has not been given'
+            call errcntrl(msg)
+         endif
+         if (egrid(1).eq.-999) then
+            msg='The energy bounds have not been given'
+            call errcntrl(msg)
+         endif
+         if (tgrid(1).eq.-999) then
+            msg='Bounds on the pump-probe delay have not been given'
+            call errcntrl(msg)
+         endif
+         if (crosscorr.eq.0.0d0) then
+            msg='Pump/probe cross correlation not given'
+            call errcntrl(msg)
+         endif
+         if (gamma.eq.0.0d0) then
+            msg='The Gamma value has not been given'
             call errcntrl(msg)
          endif
       endif
@@ -1153,6 +1189,9 @@
 
          ! Read the TrajDump files
          call rdtrajdump(i,atmp)
+
+         ! Determine the spawn times
+         call getspawntime(i,atmp)
 
          ! Read and output the spawn geometries.
          ! We also read the parent/spawn trajectory information here.
@@ -1465,21 +1504,19 @@
          a2=trim(atmp)//'/'//trim(a1)
          open(unit,file=a2,form='formatted',status='old')
 
-         ! Read current TrajDump file
-         ! First read the spawn time
+         ! Skip past the comment line
          read(unit,*)
-         read(unit,'(F10.2)') t
-         traj(itraj)%tspawn(i)=int(t/dt)+1
-!         print*,t,dt
-         backspace(unit)
 
+         ! Read the times corresponding to integer multiples of dt
 10       continue
+         rtmp=0.0d0
          read(unit,fmat,end=15) t,(rtmp(j),j=1,ncoo),(ptmp(j),j=1,ncoo),&
               gtmp,crtmp,citmp,dum,stmp
          if (mod(t,dt).ne.0.0d0) goto 10
          n=1+int(t/dt)
          ! Positons
          traj(itraj)%r(i,n,:)=rtmp(:)
+
          ! Momenta
          traj(itraj)%p(i,n,:)=ptmp(:)
          ! Phases
@@ -1529,6 +1566,57 @@
       return
 
     end subroutine wrfmat
+
+!#######################################################################
+
+    subroutine getspawntime(itraj,atmp)
+      
+      use sysdef
+      use trajdef
+
+      implicit none
+
+      integer            :: itraj,ntraj,unit,i,k
+      real*8             :: t
+      character(len=150) :: atmp,aspawn
+
+      ntraj=traj(itraj)%ntraj
+
+      unit=20
+
+      ! First trajectory
+      traj(itraj)%tspawn(0)=1
+      
+      ! Spawned trajectories
+      do i=2,ntraj
+         
+         ! Open the Spawn file
+         aspawn=''
+         aspawn=trim(atmp)//'/'
+         k=len_trim(aspawn)
+         write(aspawn(k+1:k+6),'(a)') 'Spawn.'
+         if (i.lt.10) then
+            write(aspawn(k+7:k+7),'(i1)') i
+         else
+            write(aspawn(k+7:k+8),'(i2)') i
+         endif
+         open(unit,file=aspawn,form='formatted',status='old')
+
+         ! Read the spawn time
+         read(unit,*)
+         read(unit,'(F11.2)') t
+         traj(itraj)%tspawn(i)=int(t/dt)+1
+         if (mod(t,dt).ne.0.0d0) &
+              traj(itraj)%tspawn(i)=traj(itraj)%tspawn(i)+1
+
+          ! Close the Spawn file
+         close(unit)
+         
+      enddo
+
+      return
+
+    end subroutine getspawntime
 
 !#######################################################################
 
@@ -2078,7 +2166,8 @@
       use adcspec
       use tspsgmod
       use gamessprep
-
+      use gamesstrxas
+      
       implicit none
 
 !-----------------------------------------------------------------------   
@@ -2104,8 +2193,10 @@
 !     11 <-> Calculation of TRPES using Dyson orbital norms
 !            calculated using the ADC program
 !     12 <-> Preparation of input for a TS-PSG dynamics calculation
-!     13 <-> Preparation of input for GAMESS/ORMAS X-ray absorption
-!            cross-section calculations
+!     13 <-> Preparation of input for Columbus-MRCI/GAMESS-ORMAS X-ray
+!            absorption cross-section calculations
+!     14 <-> Calculation of the bound part of the TRXAS using
+!            Columbus-MRCI/GAMESS-ORMAS cross-sections
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -2131,6 +2222,8 @@
          call tspsg_prep
       else if (ijob.eq.13) then
          call mkgamessinp
+      else if (ijob.eq.14) then
+         call gamess_trxas
       endif
 
       return

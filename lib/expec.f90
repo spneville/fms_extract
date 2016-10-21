@@ -146,4 +146,7 @@
     character(len=120), dimension(20,200)  :: gmsinp
     character(len=80), dimension(20)       :: gamessfile
 
+    ! gamess trxas
+    character(len=120)                     :: gmsdir_file
+
   end module expec

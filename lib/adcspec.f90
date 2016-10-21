@@ -415,7 +415,7 @@
       ! Electronic state indices
       allocate(staindx(nmaindir))
 
-      ! TR-TXAS
+      ! TRXAS
       ne=int(egrid(3))
       nt=int(tgrid(3))
       allocate(spec(ne,nt))
@@ -1039,7 +1039,7 @@
       character(len=250)                     :: filename
 
 !-----------------------------------------------------------------------
-! Allocate the IP and E0 array
+! Allocate the IP and E0 arrays
 !-----------------------------------------------------------------------
       if (allocated(ip)) deallocate(ip)
       allocate(ip(nsubdir))

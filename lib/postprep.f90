@@ -371,6 +371,52 @@
     end subroutine copygeom_adc
 
 !#######################################################################
+
+    subroutine copygeom_gamess(asub,ifg,itraj,istep)
+      
+      use sysdef
+      use trajdef
+      use dysonmod
+      use expec, only: ldummy
+
+      implicit none
+
+      integer                   :: ifg,itraj,istep,unit,i,m,k,spawnstep
+      real*8, dimension(natm*3) :: x
+      real*8, dimension(3)      :: xcom
+      character(len=120)        :: asub
+      character(len=130)        :: ageom
+
+!-----------------------------------------------------------------------
+! Determine the current Cartesian coordinates
+!-----------------------------------------------------------------------
+      call currgeom(x,ifg,itraj,istep)
+
+!-----------------------------------------------------------------------
+! Columbus, neutral
+!-----------------------------------------------------------------------
+      unit=20
+      ageom=trim(asub)//'/columbus/geom'
+      open(unit,file=ageom,form='formatted',status='unknown')
+
+      if (ldummy) then
+         call getcom(x,xcom)
+         write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') 'X ',0.0d0,&
+              (xcom(m), m=1,3),0.0d0
+      endif
+
+      do i=1,natm
+         write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') atlbl(i),atnum(i),&
+              (x(m), m=i*3-2,i*3),atmass(i)
+      enddo
+
+      close(unit)
+
+      return
+
+    end subroutine copygeom_gamess
+
+!#######################################################################
     
     subroutine getcom(x,xcom)
       
@@ -581,12 +627,17 @@
             k=k1
             goto 10
          endif
-            
       endif
 
       ! Assign the Cartesian coordinates
       x=traj(ifg)%r(trajlbl,istep,:)
       
+!      if (sum(x).eq.0.0d0) then
+!         print*,itraj,istep
+!         print*,"HERE"
+!         STOP
+!      endif
+
       return
            
     end subroutine currgeom
