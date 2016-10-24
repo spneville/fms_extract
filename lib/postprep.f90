@@ -632,11 +632,11 @@
       ! Assign the Cartesian coordinates
       x=traj(ifg)%r(trajlbl,istep,:)
       
-!      if (sum(x).eq.0.0d0) then
-!         print*,itraj,istep
-!         print*,"HERE"
-!         STOP
-!      endif
+      !if (sum(x).eq.0.0d0) then
+      !   print*,itraj,trajlbl,istep
+      !   print*,traj(ifg)%r(trajlbl,istep,:)
+      !   STOP
+      !endif
 
       return
            

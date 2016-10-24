@@ -44,8 +44,6 @@
 !-----------------------------------------------------------------------
     call wrout
 
-    STOP
-    
   contains
 
 !#######################################################################
@@ -1187,11 +1185,11 @@
          ! Allocate and initialise arrays
          call alloc(i)
 
-         ! Read the TrajDump files
-         call rdtrajdump(i,atmp)
-
          ! Determine the spawn times
          call getspawntime(i,atmp)
+
+         ! Read the TrajDump files
+         call rdtrajdump(i,atmp)         
 
          ! Read and output the spawn geometries.
          ! We also read the parent/spawn trajectory information here.
@@ -1202,7 +1200,7 @@
 
          ! Clean up
          call cleanup(adir(i))
-         
+
       enddo
 
 !-----------------------------------------------------------------------
@@ -1309,6 +1307,9 @@
 
 20    continue
       read(unit,'(a)',end=25) string
+      ! If we have hit an empty line, go to the next line...
+      if (string.eq.'') goto 20
+      ! ... else read any pertinant information
       call getstart(string,k)
       if (string(k:k+13).eq.'SimulationTime') then
          call getval(string,tf)
@@ -1385,10 +1386,13 @@
       ! ID's of the parent trajectories for each spawned trajectory
       if (allocated(traj(itraj)%ispawn)) deallocate(traj(itraj)%ispawn)
       allocate(traj(itraj)%ispawn(ntraj))
+      traj(itraj)%ispawn=0
 
-      ! Spawn times
+      ! Spawn times (actually the timestep at which the trajectory
+      ! was spawned)
       if (allocated(traj(itraj)%tspawn)) deallocate(traj(itraj)%tspawn)
       allocate(traj(itraj)%tspawn(ntraj))
+      traj(itraj)%tspawn=0
 
       ! Energies at the Gaussian centres
       if (allocated(traj(itraj)%ener)) deallocate(traj(itraj)%ener)
@@ -1474,7 +1478,7 @@
       implicit none
 
       integer                     :: itraj,ntraj,unit,i,j,k,&
-                                     n,ncoo
+                                     n,ncoo,spawnstep
       real*8                      :: t,gtmp,crtmp,citmp,dum,stmp
       real*8, dimension(3*natm)   :: rtmp,ptmp
       character(len=150)          :: atmp,a2
@@ -1494,6 +1498,9 @@
       ! Loop over trajectories
       do i=1,ntraj
 
+         ! Time step at which the trajectory was spawned
+         spawnstep=traj(itraj)%tspawn(i)
+
          ! Open current TrajDump file
          a1=''
          if (i.lt.10) then
@@ -1512,11 +1519,21 @@
          rtmp=0.0d0
          read(unit,fmat,end=15) t,(rtmp(j),j=1,ncoo),(ptmp(j),j=1,ncoo),&
               gtmp,crtmp,citmp,dum,stmp
-         if (mod(t,dt).ne.0.0d0) goto 10
+
+         ! Timestep
          n=1+int(t/dt)
+
+         ! Skip if we are not at a full timestep
+         ! N.B., this only works if we hit all the full timesteps,
+         ! which isn't actually gauranteed by the propagation
+         ! algotithm used in the FMS90 code...
+         !if (mod(t,dt).ne.0.0d0) goto 10
+
+         ! Skip if we are before the spawn time
+         if (n.lt.spawnstep) goto 10
+
          ! Positons
          traj(itraj)%r(i,n,:)=rtmp(:)
-
          ! Momenta
          traj(itraj)%p(i,n,:)=ptmp(:)
          ! Phases
@@ -1585,7 +1602,7 @@
       unit=20
 
       ! First trajectory
-      traj(itraj)%tspawn(0)=1
+      traj(itraj)%tspawn(1)=1
       
       ! Spawned trajectories
       do i=2,ntraj
@@ -1606,8 +1623,10 @@
          read(unit,*)
          read(unit,'(F11.2)') t
          traj(itraj)%tspawn(i)=int(t/dt)+1
-         if (mod(t,dt).ne.0.0d0) &
-              traj(itraj)%tspawn(i)=traj(itraj)%tspawn(i)+1
+
+         if (mod(t,dt).ne.0.0d0) then
+            traj(itraj)%tspawn(i)=traj(itraj)%tspawn(i)+1
+         endif
 
           ! Close the Spawn file
          close(unit)

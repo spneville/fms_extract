@@ -1,8 +1,12 @@
 ########################################################################
 # Compiler flags
 ########################################################################
+#F90OPTS = -cpp -g -ffixed-line-length-none -ffree-line-length-none -fopenmp -O2 -fbacktrace -fcheck=all
+
+F90OPTS = -g
+
 FLAGS=-llapack \
-      -lblas
+      -lblas \
 
 #FLAGS=/usr/lib64/libblas.so.3 /usr/lib64/liblapack.so.3
 
@@ -42,7 +46,7 @@ MODS=$(MODPATH)/iomod.f90 \
 # Compilation
 ########################################################################
 fms_extract:	fms_extract.f90 $(MODS)
-	gfortran -o fms_extract $(MODS) fms_extract.f90 $(FLAGS)
+	gfortran $(F90OPTS) -o fms_extract $(MODS) fms_extract.f90 $(FLAGS)
 	-rm *.mod
 
 clean: 
