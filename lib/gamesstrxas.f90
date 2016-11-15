@@ -411,7 +411,7 @@
          open(unit,file=filename,form='formatted',status='old')
 
          read(unit,'(23x,F16.10)') ip(i)
-         print*,ip(i)
+         print*,trim(filename),ip(i)
 
          close(unit)
 
