@@ -246,7 +246,7 @@
 
       unit=20
 
-      do i=1,nmaindir         
+      do i=1,nmaindir
          ain=trim(amaindir(i))//'/state_id'
          open(unit,file=ain,form='formatted',status='old')
          read(unit,*) staindx(i)

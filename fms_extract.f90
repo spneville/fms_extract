@@ -1000,6 +1000,15 @@
          fwhm_e=en_fwhm(dtprobe)
       endif
 
+!-----------------------------------------------------------------------
+! If the job type is the calculation of a TRXAS, then:
+!
+! (1) Set the FWHM wrt time
+!-----------------------------------------------------------------------
+      if (ijob.eq.14) then
+         fwhm_t=crosscorr
+      endif
+
       return
 
     end subroutine rdinpfile
