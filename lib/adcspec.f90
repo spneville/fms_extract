@@ -236,9 +236,9 @@
       nfunc=0
       do i=1,nmaindir
 
-!         ! BODGE
-!         if (staindx(i).eq.1) cycle
-!         ! BODGE
+         !! BODGE
+         !if (staindx(i).eq.1) cycle
+         !! BODGE
 
          write(6,'(2a)') 'Processing directory: ',trim(amaindir(i))
 
@@ -1750,7 +1750,7 @@
 ! Open the TR-TXAS output file
 !-----------------------------------------------------------------------
       iout=20
-      open(iout,file='trtxas.dat',form='formatted',status='unknown')
+      open(iout,file='trxas.dat',form='formatted',status='unknown')
 
 !-----------------------------------------------------------------------
 ! Calculate and output the TR-TXAS
@@ -1843,7 +1843,7 @@
 ! Open the TR-TXAS output file
 !-----------------------------------------------------------------------
       iout=20
-      open(iout,file='trtxas.dat',form='formatted',status='unknown')
+      open(iout,file='trxas.dat',form='formatted',status='unknown')
 
 !-----------------------------------------------------------------------
 ! Calculate and output the TR-TXAS

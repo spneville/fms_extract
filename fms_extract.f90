@@ -1005,7 +1005,7 @@
 !
 ! (1) Set the FWHM wrt time
 !-----------------------------------------------------------------------
-      if (ijob.eq.14) then
+      if (ijob.eq.14.or.ijob.eq.8.or.ijob.eq.9) then
          fwhm_t=crosscorr
       endif
 

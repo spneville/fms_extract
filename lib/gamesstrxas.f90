@@ -252,7 +252,7 @@
       do i=1,nintraj
          if (cnt(i).gt.0) nifg=nifg+1
       enddo
-      
+
       return
 
     end subroutine getnifg
@@ -635,6 +635,7 @@
 
             ncore(i)=0
 10          read(unit,'(25x,F15.10)',end=100) ecore(ncore(i)+1,i)
+
             ncore(i)=ncore(i)+1
             goto 10
             
@@ -816,7 +817,7 @@
       
       ! Loop over timesteps/subdirectories
       do n=1,nsubdir
-      
+         
          ! Cycle if the current timestep doesn't contribute
          if (icontrib(n).eq.0) cycle
 
@@ -839,7 +840,7 @@
             vee=ecore(k,n)-einit(n)            
 
             ! TDM^2
-            musq=tdmsq(k,n)            
+            musq=tdmsq(k,n)
 
             ! Loop over grid points
             do i=1,int(egrid(3))
@@ -852,7 +853,6 @@
                        * exp(-((t-tcent)**2)/(2.0d0*tsig**2))
                enddo
             enddo
-
 
          enddo
 
