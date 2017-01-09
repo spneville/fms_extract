@@ -226,6 +226,12 @@
                else if (keyword(i).eq.'gamess_trxas') then
                   ijob=14
 
+               else if (keyword(i).eq.'dipole_prep') then
+                  ijob=15
+                  
+               else if (keyword(i).eq.'dipole') then
+                  ijob=16
+                  
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -1205,8 +1211,8 @@
          call getspawngeom(atmp,nspawn,i)
 
          ! If required, read the logfileCLS file
-         if (ijob.eq.12) call rdlogfilecls(atmp,nspawn+1,i)
-
+         if (ijob.eq.12) call rdlogfilecls(atmp,nspawn+1,i)         
+         
          ! Clean up
          call cleanup(adir(i))
 
@@ -1408,10 +1414,15 @@
       allocate(traj(itraj)%ener(ntraj,nstep,nsta))
       traj(itraj)%ener=0.0d0
       
-      ! NACTS at the Gaussian centres
+      ! NACTs at the Gaussian centres
       if (allocated(traj(itraj)%nact)) deallocate(traj(itraj)%nact)
       allocate(traj(itraj)%nact(ntraj,nstep,nsta,natm*3))
       traj(itraj)%nact=0.0d0
+
+      ! Dipoles and transition dipoles at the Gaussian centres
+      if (allocated(traj(itraj)%dipole)) deallocate(traj(itraj)%dipole)
+      allocate(traj(itraj)%dipole(ntraj,nstep,3,nsta,nsta))
+      traj(itraj)%dipole=0.0d0
 
 !-----------------------------------------------------------------------
 ! Expectation values
@@ -1656,17 +1667,27 @@
 
       implicit none
 
-      integer                   :: ntraj,itraj,unit,trajnum,i,k,nproc
+      integer                   :: ntraj,itraj,unit,trajnum,i,k,&
+                                   nproc,nadtype,modus
       integer, dimension(ntraj) :: npnts
       real*8                    :: ftmp
       character(len=150)        :: currdir,string
       character(len=170)        :: filename
 
 !-----------------------------------------------------------------------
-! Check that nadtype=1 has been set in col.inp
+! Check to see whether nadtype=1 has been set in col.inp
+! If not, then we cannot get the NACTs from the logfileCLS files      
 !-----------------------------------------------------------------------
-!         call checknadtype(currdir)
+      call checknadtype(currdir,nadtype)
 
+      ! If the job type is the preparation of TS-PSG input, then
+      ! we cannot proceed unless nadtype=1
+      if (ijob.eq.12.and.nadtype.ne.1) then
+         write(6,'(/,2x,a,/)') 'NACTs can only be read from &
+              logfileCLS if nadtype=1'
+         STOP
+      endif
+         
 !-----------------------------------------------------------------------
 ! Determine the no. processors used
 !-----------------------------------------------------------------------
@@ -1686,36 +1707,60 @@
       close(unit)
 
 !-----------------------------------------------------------------------
-! Read the energies and NACTs at the Gaussian centres from the
-! logfileCLS files
+! Read the energies and properites at the Gaussian centres from the
+! logfileCLS files.
+!
+! modus = 1 <-> Read energies
+!         2 <-> Read properties
+!
+! N.B., due to the way in which the transition dipoles are written to
+!       file, the energies must be read first
 !-----------------------------------------------------------------------
-      do i=1,nproc         
-
-         ! Open the current logfileCLS file
-         filename=trim(currdir)//'/logfileCLS'
-         k=len_trim(filename)
-         if (i-1.lt.10.and.i-1.ne.0) then
-            write(filename(k+1:k+2),'(a1,i1)') '.',i-1
-         else if (i-1.ge.10) then
-            write(filename(k+1:k+3),'(a1,i2)') '.',i-1
-         endif
-         open(unit,file=filename,form='formatted',status='old')
+      do modus=1,2
          
-         ! Read the current logfileCLS file
-         call rdlogfilecls_1file(i,unit,itraj)
-
-         ! Close the current logfileCLS file
+         ! (1) logfileCLS
+         filename=trim(currdir)//'/logfileCLS'
+         open(unit,file=filename,form='formatted',status='old')
+         call rdlogfilecls_1file(modus,0,unit,itraj,nadtype)
          close(unit)
+         
+         ! (2) logfileCLS.n, n=1,...,nproc
+         !
+         ! Loop over processor numbers
+         do i=2,nproc
+            
+            ! Open the current logfileCLS file
+            filename=trim(currdir)//'/logfileCLS'
+            k=len_trim(filename)
+            if (i-1.lt.10.and.i-1.ne.0) then
+               write(filename(k+1:k+2),'(a1,i1)') '.',i-1
+            else if (i-1.ge.10) then
+               write(filename(k+1:k+3),'(a1,i2)') '.',i-1
+            endif
+            open(unit,file=filename,form='formatted',status='old')
+            
+            ! Read the current logfileCLS file
+            call rdlogfilecls_1file(modus,i-1,unit,itraj,nadtype)
+            
+            ! Close the current logfileCLS file
+            close(unit)
 
+         enddo
+         
       enddo
 
+      ! ENERGY CHECK
+      !do i=1,nstep
+      !   if (traj(itraj)%ener(1,i,1).ne.0.0d0) print*,(i-1)*dt,traj(itraj)%ener(1,i,1)
+      !enddo
+         
       return
 
     end subroutine rdlogfilecls
 
 !#######################################################################
 
-    subroutine checknadtype(currdir)
+    subroutine checknadtype(currdir,nadtype)
 
       use parsemod
 
@@ -1743,24 +1788,25 @@
 
       read(keyword(3),*) nadtype
 
-      if (nadtype.ne.1) then
-         write(6,'(/,2x,a)') 'nadtype is not set to 1 in col.inp'
-         write(6,'(2x,a,/)') 'This is incompatible with TS-PSG input &
-              generation'
-         STOP
-      endif      
-
 !-----------------------------------------------------------------------
 ! Close the col.inp file
 !-----------------------------------------------------------------------
-
+      close(unit)
+      
       return
 
     end subroutine checknadtype
 
 !#######################################################################
-
-    subroutine rdlogfilecls_1file(iproc,unit,itraj)
+! rdlogfilecls_1file: reads a single logfilecls file.
+!                     modus = 1 <-> Read MRCI energies
+!                             2 <-> Read properties
+!
+! Note that, in the current incarnation, the MRCI energies have to be
+! read before the transition dipole moments can be read.
+!#######################################################################
+    
+    subroutine rdlogfilecls_1file(modus,iproc,unit,itraj,nadtype)
 
       use expec
       use sysdef
@@ -1768,90 +1814,229 @@
 
       implicit none
 
-      integer                   :: iproc,unit,itraj,trajnum,istep,s1,&
-                                   s2,trajsta,currsta,i,j,k
-      real*8                    :: time,ftmp
-      real*8, dimension(3*natm) :: tmpvec
-      character(len=150)        :: string
+      integer                           :: modus,iproc,unit,itraj,&
+                                           trajnum,istep,s1,s2,&
+                                           trajsta,currsta,i,j,k,&
+                                           nadtype,npairs,found
+      real*8                            :: time,ftmp,e1,e2
+      real*8, dimension(:), allocatable :: tlast_ener,tlast_dm,&
+                                           tlast_tdm,tlast_nact
+      real*8, dimension(3*natm)         :: tmpvec
+      real*8, parameter                 :: dethrsh=1e-6
+      character(len=180)                :: string
 
 !-----------------------------------------------------------------------
-! Read to the start of where we want to be.
-!
-! Note that, depending on the number of cores used and the number of
-! trajectories spawned, some of the logfileCLS.n files may not be
-! filled in.
+! Initialisation
 !-----------------------------------------------------------------------
-5     read(unit,'(a)',end=100) string
-      if (index(string,'Dalton Summary').eq.0) goto 5
+      ! Times at which various sections were last read: it is necessary
+      ! to keep track of this in order to identify spawning events,
+      ! which appear with the same timestamp as the previous 'good'
+      ! entry
+      allocate(tlast_ener(traj(itraj)%ntraj))
+      allocate(tlast_dm(traj(itraj)%ntraj))
+      allocate(tlast_tdm(traj(itraj)%ntraj))
+      allocate(tlast_nact(traj(itraj)%ntraj))
+      tlast_ener=-1.0d0
+      tlast_dm=-1.0d0
+      tlast_tdm=-1.0d0
+      tlast_nact=-1.0d0
+      
+!-----------------------------------------------------------------------
+! If we are reading logfileCLS (not logfileCLS.n), then skip past the
+! first 'initialisation' calculation
+!-----------------------------------------------------------------------
+      if (iproc.eq.0) then
 
+         found=0
+
+5        read(unit,'(a)') string
+
+         if (index(string,'Dalton Summary').ne.0) found=found+1
+            
+         if (found.lt.2) goto 5
+         
+      endif
+      
 !-----------------------------------------------------------------------
 ! Read the electronic structure information
 !-----------------------------------------------------------------------
-      if (iproc.gt.1) rewind(unit)
-      
-      ! Read to the next timestep
 10    read(unit,'(a)',end=999) string
-      if (index(string,'Dalton Summary').eq.0) goto 10
 
-      ! Determine the trajectory index and skip if we
-      ! are at a centroid calculation
-      read(string,'(48x,i4)') trajnum
-      if (trajnum.lt.0) goto 10
-
-      ! Read the time
-      read(string,'(59x,F11.2)') time
-      
-      ! If we are not at a full timestep, then skip
-      if (mod(time,dt).ne.0.0d0) goto 10
-
-      ! Determine the timestep
-      istep=int(time/dt)+1
-
+      !-----------------------------------------------------------------
       ! MRCI energies
-15    read(unit,'(a)',end=999) string
-      if (index(string,'CIUDG  Summary').eq.0) goto 15
-      k=0
-20    read(unit,'(a)') string
-      if (index(string,'Total energy:').eq.0) goto 20
-      k=k+1
-      read(string,'(30x,F16.10)') ftmp
-      traj(itraj)%ener(trajnum,istep,k)=ftmp
-      if (k.lt.nsta) goto 20
+      !-----------------------------------------------------------------
+      if (modus.eq.1.and.index(string,'CIUDG  Summary').ne.0) then
 
-      ! NACTs
-25    read(unit,'(a)',end=999) string
-      if (index(string,'NAD Summary').ne.0) then
-         ! Determine the state index
-         read(string,'(57x,i2,1x,i2)') s1,s2
-         trajsta=traj(itraj)%ista(trajnum)
-         if (trajsta.eq.s1) then
-            currsta=s2
-         else if (trajsta.eq.s2) then
-            currsta=s1
-         else
-            print*,"SOMETHING HAS GONE TERRIBLY WRONG IN rdlogfilecls_1file"
-            STOP
+         ! Determine the trajectory index and only proceed if we
+         ! are not at a centroid calculation
+         read(string,'(48x,i4)') trajnum
+         if (trajnum.gt.0) then
+
+            ! Read the time and determine the timestep
+            read(string,'(59x,F10.2)') time
+
+
+            istep=int(time/dt)+1
+
+            ! Only proceed if we are at a full timestep and we are not
+            ! at a spawning event
+            if (mod(time,dt).eq.0.0d0.and.time.ne.tlast_ener(trajnum)) then
+
+               ! Read the MRCI energies
+               found=0
+15             read(unit,'(a)',end=999) string
+               if (index(string,'MRCI convergence criteria').eq.0) then
+
+                  if (index(string,'ROOT').ne.0) then
+                     found=found+1
+                     read(unit,*)
+                     read(unit,'(a)') string
+                     read(string,'(30x,F16.10)') ftmp
+                     traj(itraj)%ener(trajnum,istep,found)=ftmp
+                  endif
+
+                  ! Continue reading if we haven't found all the roots yet
+                  if (found.lt.nsta) goto 15
+               endif
+
+               ! Save the current time in order to identify and skip
+               ! spawning events
+               tlast_ener(trajnum)=time
+               
+            endif
+            
          endif
-         ! Read the NACT vector
-         read(unit,*)
-         read(unit,*)
-         do i=1,natm
-            read(unit,'(15x,3F17.6)') (tmpvec(j),j=i*3-2,i*3)
-         enddo
-         traj(itraj)%nact(trajnum,istep,currsta,:)=tmpvec
+
+         ! Read the next line in the logfileCLS file
+         goto 10
+
       endif
 
-      ! THIS IS AWFUL:
-      if (index(string,'Dalton').eq.0) goto 25
-      backspace(unit)
+      !-----------------------------------------------------------------
+      ! Dipole matrix elements: on-diagonal (electronic component only)
+      !-----------------------------------------------------------------
+      if (modus.eq.2.and.index(string,'EXPLVL Summary').ne.0) then
 
+         ! Determine the trajectory index and only proceed if we
+         ! are not at a centroid calculation
+         read(string,'(48x,i4)') trajnum
+         if (trajnum.gt.0) then
+
+            ! Read the time and determine the timestep
+            read(string,'(69x,F10.2)') time
+            istep=int(time/dt)+1
+
+            ! Only proceed if we are at a full timestep and we are not
+            ! at a spawning event
+            if (mod(time,dt).eq.0.0d0.and.time.ne.tlast_dm(trajnum)) then
+
+               ! Read the state number
+               read(string,'(60x,i2)') s1
+
+               ! Read the dipole moment
+               do i=1,3
+                  read(unit,*)
+               enddo
+               read(unit,'(a)') string
+               read(string,'(11x,3(5x,F11.8))') &
+                    (traj(itraj)%dipole(trajnum,istep,i,s1,s1), i=1,3)
+
+               ! Save the current time in order to identify and skip
+               ! spawning events
+               tlast_dm(trajnum)=time
+               
+            endif
+            
+         endif
+
+         ! Read the next line in the logfileCLS file
+         goto 10
+      endif
+
+      !-----------------------------------------------------------------
+      ! Dipole matrix elements: off-diagonal
+      !-----------------------------------------------------------------
+      if (modus.eq.2.and.index(string,'TRNCI Summary').ne.0) then
+
+         ! Determine the trajectory index and only proceed if we
+         ! are not at a centroid calculation
+         read(string,'(47x,i4)') trajnum
+         if (trajnum.gt.0) then
+
+            ! Read the time and determine the timestep
+            read(string,'(58x,F10.2)') time
+            istep=int(time/dt)+1
+
+            ! Only proceed if we are at a full timestep and we are not
+            ! at a spawning event
+            if (mod(time,dt).eq.0.0d0.and.time.ne.tlast_tdm(trajnum)) then
+            
+               ! Read the state energies and match these to the
+               ! corresponding state numbers
+               ! N.B. We here assume that the corresponding MRCI energies
+               ! have already been written...
+               do i=1,5
+                  read(unit,*)
+               enddo
+               read(unit,'(a)') string
+               read(string,'(18x,F19.8,F23.8)') e1,e2
+               s1=0
+               s2=0
+               do i=1,nsta
+                  if (abs(e1-traj(itraj)%ener(trajnum,istep,i)).lt.dethrsh) s1=i
+                  if (abs(e2-traj(itraj)%ener(trajnum,istep,i)).lt.dethrsh) s2=i
+               enddo
+               if (s1.eq.0.or.s2.eq.0) then
+
+                  print*,trajnum,time
+                  
+                  write(6,'(/,a,/)') &
+                       'Error reading the transition dipole moments...'
+                  STOP
+               endif
+               
+               ! Read the transition dipole moment
+               do i=1,13
+                  read(unit,*)
+               enddo
+               read(unit,'(a)') string
+               read(string,'(13x,3(3x,F10.6))') &
+                    (traj(itraj)%dipole(trajnum,istep,i,s1,s2), i=1,3)
+               do i=1,3
+                  traj(itraj)%dipole(trajnum,istep,i,s2,s1)=&
+                       traj(itraj)%dipole(trajnum,istep,i,s1,s2)
+               enddo
+
+               ! Save the current time in order to identify and skip
+               ! spawning events
+               tlast_tdm(trajnum)=time
+               
+            endif
+               
+         endif
+
+         ! Read the next line in the logfileCLS file
+         goto 10
+
+      endif
+      
+      !-----------------------------------------------------------------
+      ! NACTs: only required if the job type is a TS-PSG preparation
+      !-----------------------------------------------------------------
+      if (modus.eq.2.and.index(string,'NAD Summary').ne.0.and.ijob.eq.12) then
+         print*,"WRITE THE NACT PARSING CODE!"
+         STOP
+      endif
+      
+      
+      ! Read the next line in the logfileCLS file
       goto 10
 
+      
+      ! End of file
 999   continue
-
+      
       return
-
-100   return
 
     end subroutine rdlogfilecls_1file
 
@@ -2195,6 +2380,7 @@
       use tspsgmod
       use gamessprep
       use gamesstrxas
+      use dipoleprep
       
       implicit none
 
@@ -2225,6 +2411,10 @@
 !            absorption cross-section calculations
 !     14 <-> Calculation of the bound part of the TRXAS using
 !            Columbus-MRCI/GAMESS-ORMAS cross-sections
+!     15 <-> Preparation of input for the calculation of dipole
+!            matrix elements (a pre-requesite for the calculation
+!            dipole expectation values)
+!     16 <-> Calculation of dipole expectation values      
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -2252,6 +2442,11 @@
          call mkgamessinp
       else if (ijob.eq.14) then
          call gamess_trxas
+      else if (ijob.eq.15) then
+         call prep_dipole_inp
+      else if (ijob.eq.16) then
+         print*,"WRITE THE REST OF THE DIPOLE CODE!"
+         STOP
       endif
 
       return

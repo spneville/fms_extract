@@ -270,7 +270,7 @@
 ! Columbus, neutral
 !-----------------------------------------------------------------------
       unit=20
-      ageom=trim(asub)//'/'//trim(acol_n)//'/geom'      
+      ageom=trim(asub)//'/'//trim(acol_n)//'/geom'
       open(unit,file=ageom,form='formatted',status='unknown')
       if (ldummy) write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') 'X',&
            0.0d0,(xcom(m), m=1,3),0.0d0
