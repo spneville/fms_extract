@@ -149,4 +149,7 @@
     ! gamess trxas
     character(len=120)                     :: gmsdir_file
 
+    ! Dipole operator expectation value
+    character(len=120)                     :: colppdir_file
+    
   end module expec

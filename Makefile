@@ -22,6 +22,7 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/kabschmod.f90 \
      $(MODPATH)/permutemod.f90 \
      $(MODPATH)/trajdef.f90 \
+     $(MODPATH)/centdef.f90 \
      $(MODPATH)/expec.f90 \
      $(MODPATH)/intcoo.f90 \
      $(MODPATH)/gausstools.f90 \
@@ -41,7 +42,8 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/tspsgmod.f90 \
      $(MODPATH)/gamessprep.f90 \
      $(MODPATH)/gamesstrxas.f90 \
-     $(MODPATH)/dipoleprep.f90
+     $(MODPATH)/dipoleprep.f90 \
+     $(MODPATH)/dipole.f90
 
 ########################################################################
 # Compilation

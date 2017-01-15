@@ -35,6 +35,14 @@
     call rdtraj(adir)
 
 !-----------------------------------------------------------------------
+! Set up the centroids
+!
+! N.B., we should only be doing this if the job type requires
+! centroid information
+!-----------------------------------------------------------------------
+    call getcentroids
+    
+!-----------------------------------------------------------------------
 ! Calculate the requested expectation values
 !-----------------------------------------------------------------------
     call calc_expec
@@ -137,8 +145,10 @@
       bastype=1
       
       gamessfile=''
-
       gmsdir_file=''
+
+      ! Columbus post. prep. directory file
+      colppdir_file=''
       
 !-----------------------------------------------------------------------
 ! Read input file name
@@ -815,6 +825,14 @@
             else
                goto 100
             endif
+
+         else if (keyword(i).eq.'colpp_dir_file') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               read(keyword(i),'(a)') colppdir_file
+            else
+               goto 100
+            endif
             
          else
             ! Exit if the keyword is not recognised
@@ -981,6 +999,14 @@
          endif
       endif
 
+      if (ijob.eq.16) then
+         if (colppdir_file.eq.'') then
+            msg='The name of the Columbus post-processing directory file &
+                 has not been given'
+            call errcntrl(msg)
+         endif
+      endif
+      
 !-----------------------------------------------------------------------
 ! If the job type is the calculation of a TRPES, then:
 !
@@ -1198,7 +1224,7 @@
          call propinfo(i,nspawn,atmp,adir(i))         
 
          ! Allocate and initialise arrays
-         call alloc(i)
+         call alloc_traj(i)
 
          ! Determine the spawn times
          call getspawntime(i,atmp)
@@ -1353,7 +1379,7 @@
 
 !#######################################################################
 
-    subroutine alloc(itraj)
+    subroutine alloc_traj(itraj)
 
       use sysdef
       use trajdef
@@ -1433,7 +1459,7 @@
 
       return
 
-    end subroutine alloc
+    end subroutine alloc_traj
 
 !#######################################################################
 
@@ -2365,6 +2391,179 @@
 
 !#######################################################################
 
+    subroutine getcentroids
+
+      use trajdef
+      use centdef
+      use sysdef
+      use gausstools
+      
+      implicit none
+
+      integer           :: i,j,n,n1,n2,indx,istep,stepi,stepf
+      
+!-----------------------------------------------------------------------
+! Output where we are at
+!-----------------------------------------------------------------------
+      write(6,'(/,2x,a,/)') 'Calculating the centroid information...'
+      
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      ! Numbers of centroids per IFG
+      allocate(ncent(nintraj))
+
+      ! Determine the maximum possible no. centroids across all
+      ! IFGs
+      maxcent=0
+      do i=1,nintraj
+         n=traj(i)%ntraj
+         ncent(i)=n*(n-1)/2
+         if (ncent(i).gt.maxcent) maxcent=ncent(i)
+      enddo
+
+      ! Allocate the cent array of centroid derived types
+      allocate(cent(nintraj,maxcent))
+
+!-----------------------------------------------------------------------
+! Allocate the arrays of the cetroid derived types
+!-----------------------------------------------------------------------
+      do i=1,nintraj
+         do j=1,ncent(i)
+            call alloc_cent(i,j)
+         enddo
+      enddo
+
+!-----------------------------------------------------------------------
+! Fill in the centroid derived types
+!-----------------------------------------------------------------------
+      ! Loop over IFGs
+      do i=1,nintraj
+         
+         ! Loop over the 1st trajectory index
+         do n1=1,traj(i)%ntraj-1
+            
+            ! Loop over the 2nd trajectory index
+            do n2=n1+1,traj(i)%ntraj
+               
+               ! Get the centroid index for the current pair
+               ! of trajectories
+               indx=centindx(n1,n2,i)
+               
+               ! Trajectory indices: lower-triangle, column-major order
+               ! convention
+               cent(i,indx)%indx1=n2
+               cent(i,indx)%indx1=n1
+               
+               ! Determine the timestep interval for which both
+               ! trajectories are alive
+               call get_interval_alive_2traj(i,n1,n2,stepi,stepf)
+               cent(i,indx)%tspawn=stepi
+               cent(i,indx)%tkill=stepf
+
+               ! If the two trajectories are never simultaneously alive,
+               ! then flag the centroid as inactive this and cycle
+               if (stepi.gt.stepf) then
+                  cent(i,indx)%lcontrib=.false.
+                  cycle
+               else
+                  cent(i,indx)%lcontrib=.true.
+               endif
+               
+               ! Loop over the timesteps for which both trajectories
+               ! are alive
+               do istep=stepi,stepf
+                  
+                  ! Centroid position vector
+                  cent(i,indx)%r(istep,:)=rcent(n1,n2,i,istep)
+                  
+                  ! Centroid momentum vector
+                  cent(i,indx)%p(istep,:)=pcent(n1,n2,i,istep)
+                  
+                  ! Overlap of the trajectories
+                  cent(i,indx)%ovrlp(istep)=&
+                       overlap_general_nuc_only(i,i,n1,n2,istep,istep)
+                  
+               enddo
+
+               ! If the overlap of the two trajectories if never above
+               ! threshold, then flag the centroid as inactive
+               if (maxval(abs(cent(i,indx)%ovrlp)).lt.othrsh) &
+                    cent(i,indx)%lcontrib=.false.
+            enddo
+            
+         enddo
+
+      enddo
+         
+      return
+      
+    end subroutine getcentroids
+
+!#######################################################################
+
+    subroutine alloc_cent(ifg,cindx)
+
+      use sysdef
+      use centdef
+      use expec
+      
+      implicit none
+
+      integer :: ifg,cindx
+
+!-----------------------------------------------------------------------
+! Centroid information
+!-----------------------------------------------------------------------
+      ! Positions
+      allocate(cent(ifg,cindx)%r(nstep,natm*3))
+      cent(ifg,cindx)%r=0.0d0
+
+      ! Momenta
+      allocate(cent(ifg,cindx)%p(nstep,natm*3))
+      cent(ifg,cindx)%p=0.0d0
+
+      ! Widths
+      allocate(cent(ifg,cindx)%alpha(natm*3))
+      cent(ifg,cindx)%alpha=0.0d0
+
+      ! Overlaps
+      allocate(cent(ifg,cindx)%ovrlp(nstep))
+      cent(ifg,cindx)%ovrlp=0.0d0
+      
+      return
+      
+    end subroutine alloc_cent
+
+!#######################################################################
+! get_interval_alive_2traj: determines the first and last timesteps
+!                           (stepi and stepf) at which two trajectories
+!                           are simultaneously alive
+!#######################################################################
+    
+    subroutine get_interval_alive_2traj(ifg,n1,n2,stepi,stepf)
+
+      use trajdef
+      
+      implicit none
+
+      integer :: ifg,n1,n2,stepi,stepf,tspawn1,tspawn2,tkill1,tkill2
+
+      tspawn1=traj(ifg)%tspawn(n1)
+      tspawn2=traj(ifg)%tspawn(n2)      
+
+      tkill1=traj(ifg)%tkill(n1)
+      tkill2=traj(ifg)%tkill(n2)
+
+      stepi=max(tspawn1,tspawn2)
+      stepf=min(tkill1,tkill2)
+      
+      return
+      
+    end subroutine get_interval_alive_2traj
+      
+!#######################################################################
+
     subroutine calc_expec
 
       use expec, only: ijob
@@ -2381,6 +2580,7 @@
       use gamessprep
       use gamesstrxas
       use dipoleprep
+      use dipole
       
       implicit none
 
@@ -2445,8 +2645,7 @@
       else if (ijob.eq.15) then
          call prep_dipole_inp
       else if (ijob.eq.16) then
-         print*,"WRITE THE REST OF THE DIPOLE CODE!"
-         STOP
+         call calc_dipole
       endif
 
       return

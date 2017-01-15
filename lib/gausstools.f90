@@ -5,8 +5,8 @@
     contains
 
 !#######################################################################
-! ispop: returns .true. if the population of a trajectory at a given
-!        timestep is above a threshold value (10^-5)
+! ispop: returns .true. if the population of a bundle of trajectories
+!        at a given timestep is above a threshold value (10^-5)
 !#######################################################################
 
     function ispop(itraj,istep)
@@ -34,9 +34,9 @@
     end function ispop
 
 !#######################################################################
-! ispop_staproj: returns .true. if the population of a trajectory
-!                projected onto a given state at a given timestep is
-!                above a threshold value (10^-5)
+! ispop_staproj: returns .true. if the population of a bundle of
+!                trajectories projected onto a given state at a given
+!                timestep is above a threshold value (10^-5)
 !#######################################################################
     
     function ispop_staproj(itraj,istep,ista) result(ispop)
@@ -65,6 +65,36 @@
 
     end function ispop_staproj
 
+!#######################################################################
+! ispop_1bas: returns .true. if a given Gaussian basis function is
+!             populated at a given timestep
+!#######################################################################
+
+    function ispop_1bas(ifg,ibas,istep) result(ispop)
+
+      use trajdef
+      
+      implicit none
+
+      integer           :: ifg,ibas,istep
+      real*8, parameter :: tol=10d-5
+      logical           :: ispop
+      complex*16        :: coe,coe2
+
+      coe=traj(ifg)%coe(ibas,istep)
+
+      coe2=conjg(coe)*coe
+
+      if (real(coe2).gt.tol) then
+         ispop=.true.
+      else
+         ispop=.false.
+      endif
+         
+      return
+      
+    end function ispop_1bas
+    
 !#######################################################################
 ! psixpsi: calculates the value of |Psi(x)|^2 for the Cartesian
 !          coordinates x held in xcoo 
@@ -190,7 +220,8 @@
 
 !#######################################################################
 
-    function overlap_general(ifg1,ifg2,traj1,traj2,step1,step2) result(func)
+    function overlap_general(ifg1,ifg2,traj1,traj2,step1,step2) &
+         result(func)
 
       use sysdef
       use trajdef
@@ -224,7 +255,36 @@
 
 !#######################################################################
 
-    function overlap_general1d(m,ifg1,ifg2,traj1,traj2,step1,step2) result(func)
+    function overlap_general_nuc_only(ifg1,ifg2,traj1,traj2,step1,step2) &
+         result(func)
+
+      use sysdef
+      use trajdef
+      
+      implicit none
+
+      integer    :: ifg1,ifg2,traj1,traj2,step1,step2,m
+      real*8     :: gamma1,gamma2
+      complex*16 :: func,im,czero,c1,c2
+
+      im=(0.0d0,1.0d0)
+      czero=(0.0d0,0.0d0)
+      
+      gamma1=traj(ifg1)%phase(traj1,step1)
+      gamma2=traj(ifg2)%phase(traj2,step2)
+      func=exp(im*(gamma1-gamma2))
+      do m=1,natm*3
+         func=func*overlap_general1d(m,ifg1,ifg2,traj1,traj2,step1,step2)
+      enddo
+
+      return
+      
+    end function overlap_general_nuc_only
+    
+!#######################################################################
+
+    function overlap_general1d(m,ifg1,ifg2,traj1,traj2,step1,&
+         step2) result(func)
 
       use sysdef
       use trajdef
@@ -278,7 +338,67 @@
       return
       
     end function overlap_general1d
+
+!#######################################################################
+! rcent: for a pair of trajectories indexed n1 and n2 from the IFG
+!        indexed ifg, returns the position vector of the correspoding
+!        centroid at the istep'th timestep.
+!        Here, we make use of the fact that frozen Gaussian basis
+!        functions are used, i.e, the widths for the two trajectories
+!        are equal.
+!#######################################################################
+    
+    function rcent(n1,n2,ifg,istep)
+
+      use sysdef
+      use trajdef
+
+      integer                   :: n1,n2,ifg,istep,i
+      real*8, dimension(natm*3) :: rcent
+      real*8                    :: a
       
+      rcent=0.0d0
+
+      do i=1,natm*3
+         a=alpha(i)
+         rcent(i)=(a*traj(ifg)%r(n1,istep,i)&
+              +a*traj(ifg)%r(n2,istep,i))/(2.0d0*a)
+      enddo
+      
+      return
+      
+    end function rcent
+
+!#######################################################################
+! pcent: for a pair of trajectories indexed n1 and n2 from the IFG
+!        indexed ifg, returns the momentum vector of the correspoding
+!        centroid at the istep'th timestep.
+!        Here, we make use of the fact that frozen Gaussian basis
+!        functions are used, i.e, the widths for the two trajectories
+!        are equal.
+!#######################################################################
+    
+    function pcent(n1,n2,ifg,istep)
+
+      use sysdef
+      use trajdef
+
+      integer                   :: n1,n2,ifg,istep,i
+      real*8, dimension(natm*3) :: pcent
+      real*8                    :: a
+      
+      pcent=0.0d0
+      
+      do i=1,natm*3
+         a=alpha(i)
+         pcent(i)=(a*traj(ifg)%p(n1,istep,i)&
+              +a*traj(ifg)%p(n2,istep,i))/(2.0d0*a)
+      enddo
+      
+      return
+      
+    end function pcent
+    
 !#######################################################################
 
     end module gausstools

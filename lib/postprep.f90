@@ -8,7 +8,10 @@
   contains
 
 !#######################################################################
-
+! getmaindir: returns the directory name for a given pair of IFG and
+!             trajectory numbers
+!#######################################################################
+    
     subroutine getmaindir(amain,i,k)
 
       implicit none
@@ -34,6 +37,45 @@
 
     end subroutine getmaindir
 
+!#######################################################################
+! getmaindir_cent: returns the directory name for a given IFG and pair
+!                  of trajectory numbers
+!#######################################################################
+    
+    subroutine getmaindir_cent(amain,ifg,i,j)
+
+      implicit none
+      
+      integer            :: ifg,i,j,n1,n2
+      character(len=120) :: amain
+
+      amain=''
+
+      n1=min(i,j)
+      n2=max(i,j)
+      
+      if (ifg.lt.10) then
+         write(amain(1:5),'(a4,i1)') 'ifg0',ifg
+      else
+         write(amain(1:5),'(a3,i2)') 'ifg',ifg
+      endif
+      
+      if (n1.lt.10) then
+         write(amain(6:12),'(a6,i1)') '_cent0',n1
+      else
+         write(amain(6:12),'(a5,i2)') '_cent',n1
+      endif
+
+      if (n2.lt.10) then
+         write(amain(13:15),'(a2,i1)') '_0',n2         
+      else
+         write(amain(13:15),'(a1,i2)') '_',n2
+      endif
+      
+      return
+
+    end subroutine getmaindir_cent
+      
 !#######################################################################
 
     subroutine makedir(string)
@@ -91,6 +133,42 @@
       
     end subroutine wrstatenumber
 
+!#######################################################################
+
+    subroutine wrstatenumber_cent(amain,ifg,itraj1,itraj2)
+
+      use trajdef
+
+      implicit none
+
+      integer            :: ifg,itraj1,itraj2,n1,n2,unit
+      character(len=120) :: amain
+      character(len=130) :: aout
+
+      n1=min(itraj1,itraj2)
+      n2=max(itraj1,itraj2)
+
+!-----------------------------------------------------------------------
+! Open file
+!-----------------------------------------------------------------------
+      unit=20
+      aout=trim(amain)//'/state_id'
+      open(unit,file=aout,form='formatted',status='unknown')
+
+!-----------------------------------------------------------------------
+! Write state numbers to file
+!-----------------------------------------------------------------------
+      write(unit,'(i2,2x,i2)') traj(ifg)%ista(n1),traj(ifg)%ista(n2)
+
+!-----------------------------------------------------------------------
+! Close file
+!-----------------------------------------------------------------------
+      close(unit)
+      
+      return
+      
+    end subroutine wrstatenumber_cent
+      
 !#######################################################################
 
     subroutine wrifgnumber(amain,ifg)
@@ -165,6 +243,54 @@
 
 !#######################################################################
 
+    subroutine getsubdir_cent(asub,ifg,i,j,istep)
+
+      implicit none
+      
+      integer            :: ifg,i,j,istep,n1,n2
+      character(len=120) :: asub
+
+      asub=''
+
+      n1=min(i,j)
+      n2=max(i,j)
+      
+      if (ifg.lt.10) then
+         write(asub(1:5),'(a4,i1)') 'ifg0',ifg
+      else
+         write(asub(1:5),'(a3,i2)') 'ifg',ifg
+      endif
+      
+      if (n1.lt.10) then
+         write(asub(6:12),'(a6,i1)') '_cent0',n1
+      else
+         write(asub(6:12),'(a5,i2)') '_cent',n1
+      endif
+
+      if (n2.lt.10) then
+         write(asub(13:15),'(a2,i1)') '_0',n2         
+      else
+         write(asub(13:15),'(a1,i2)') '_',n2
+      endif
+
+      if (istep.lt.10) then
+         write(asub(16:26),'(a9,i1)') '/step0000',istep
+      else if (istep.lt.100) then
+         write(asub(16:26),'(a8,i2)') '/step000',istep
+      else if (istep.lt.1000) then
+         write(asub(16:26),'(a7,i3)') '/step00',istep
+      else if (istep.lt.10000) then
+         write(asub(16:26),'(a6,i4)') '/step0',istep
+      else
+         write(asub(16:26),'(a5,i5)') '/step',istep
+      endif
+
+      return
+
+    end subroutine getsubdir_cent
+    
+!#######################################################################
+
     subroutine wrcoeff(asub,ifg,itraj,istep)
 
       use trajdef
@@ -199,6 +325,51 @@
       return
 
     end subroutine wrcoeff
+
+!#######################################################################
+
+    subroutine wrcoeff_cent(asub,ifg,itraj1,itraj2,istep)
+
+      use trajdef
+
+      implicit none
+
+      integer            :: ifg,itraj1,itraj2,istep,n1,n2,unit
+      real*8             :: coe_r,coe_i
+      character(len=120) :: asub
+      character(len=130) :: aout
+
+!-----------------------------------------------------------------------
+! Open file
+!-----------------------------------------------------------------------
+      unit=20
+      aout=trim(asub)//'/coeff'      
+      open(unit,file=aout,form='formatted',status='unknown')
+
+!-----------------------------------------------------------------------
+! Write the expansion coefficients to file
+!-----------------------------------------------------------------------
+      n1=min(itraj1,itraj2)
+      n2=max(itraj1,itraj2)
+
+      write(unit,'(a)') 'Re, Im'
+      
+      coe_r=real(traj(ifg)%coe(n1,istep))
+      coe_i=aimag(traj(ifg)%coe(n1,istep))
+      write(unit,'(2(F10.7,2x))') coe_r,coe_i
+
+      coe_r=real(traj(ifg)%coe(n2,istep))
+      coe_i=aimag(traj(ifg)%coe(n2,istep))
+      write(unit,'(2(F10.7,2x))') coe_r,coe_i
+      
+!-----------------------------------------------------------------------
+! Close file
+!-----------------------------------------------------------------------
+      close(unit)
+
+      return
+
+    end subroutine wrcoeff_cent
     
 !#######################################################################
 
@@ -386,14 +557,14 @@
       real*8, dimension(3)      :: xcom
       character(len=120)        :: asub
       character(len=130)        :: ageom
-
+      
 !-----------------------------------------------------------------------
 ! Determine the current Cartesian coordinates
 !-----------------------------------------------------------------------
       call currgeom(x,ifg,itraj,istep)
 
 !-----------------------------------------------------------------------
-! Columbus, neutral
+! Columbus geom file
 !-----------------------------------------------------------------------
       unit=20
       ageom=trim(asub)//'/columbus/geom'
@@ -416,6 +587,56 @@
 
     end subroutine copygeom_gamess
 
+!#######################################################################
+
+    subroutine copygeom_cent(asub,ifg,cindx,istep)
+
+      use sysdef
+      use centdef
+      use dysonmod
+      use expec, only: ldummy
+      
+      implicit none
+
+      integer                   :: ifg,cindx,istep,unit,i,m
+      real*8, dimension(natm*3) :: x
+      real*8, dimension(3)      :: xcom
+      character(len=120)        :: asub
+      character(len=130)        :: ageom
+
+!-----------------------------------------------------------------------
+! Set the current Cartesian coordinates of the centroid indexed cindx
+!
+! N.B., due to the way that the guess orbitals for the centroid
+! Columbus calculations are generated, we do not require an unbroken
+! string of geometries as in the calculations at the Gaussian centres
+!-----------------------------------------------------------------------
+      x=cent(ifg,cindx)%r(istep,:)
+
+!-----------------------------------------------------------------------
+! Columbus geom file
+!-----------------------------------------------------------------------
+      unit=20
+      ageom=trim(asub)//'/columbus/geom'
+      open(unit,file=ageom,form='formatted',status='unknown')
+
+      if (ldummy) then
+         call getcom(x,xcom)
+         write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') 'X ',0.0d0,&
+              (xcom(m), m=1,3),0.0d0
+      endif
+
+      do i=1,natm
+         write(unit,'(1x,a2,4x,F3.1,3(F14.8),3x,F11.8)') atlbl(i),atnum(i),&
+              (x(m), m=i*3-2,i*3),atmass(i)
+      enddo
+
+      close(unit)
+
+      return
+      
+    end subroutine copygeom_cent
+      
 !#######################################################################
     
     subroutine getcom(x,xcom)
