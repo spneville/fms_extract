@@ -474,7 +474,7 @@
       integer, dimension(:), allocatable     :: icontrib
       integer, dimension(nsubdir)            :: ncore
       real*8, dimension(maxsta,nsubdir)      :: ecore
-      real*8, parameter                      :: thrsh=0.0d0
+      real*8, parameter                      :: thrsh=0.01d0
       real*8                                 :: diff,dist
       complex*16, dimension(nsubdir)         :: coeff
       character(len=120)                     :: amaindir
@@ -914,7 +914,7 @@
          do k=1,ncore(n)
 
             ! Cycle if the current state lies above the IP
-            !if (ecore(k,n).ge.ip(n)) cycle
+            if (ecore(k,n).ge.ip(n)) cycle
 
             ! Prefactor
             csq=conjg(coeff(n))*coeff(n)
