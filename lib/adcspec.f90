@@ -777,6 +777,9 @@
       character(len=250)                :: filename
       logical                           :: lopen
 
+!-----------------------------------------------------------------------
+! Read the Cartesian coordinates from file
+!-----------------------------------------------------------------------
       iend=len_trim(amaindir)
       !istart=0
       !do i=3,iend
@@ -817,10 +820,15 @@
 
       close(iadc)
 
+!-----------------------------------------------------------------------
+! Calculate the 1st-order distance to the CI seam
+!-----------------------------------------------------------------------
       dist=x2int(xcoo,1)
 
-      ! Write the Cartesian coordinates to file if we are closer than
-      ! threshold to the seam of interest
+!-----------------------------------------------------------------------
+! Write the Cartesian coordinates to file if we are closer than
+! threshold to the seam of interest
+!-----------------------------------------------------------------------
       if (iwrgeom.eq.1.and.dist.lt.cifdthrsh) then         
          write(cifunit,'(i2)') natm
          write(cifunit,'(a)') trim(filename)

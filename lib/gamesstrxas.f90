@@ -130,6 +130,14 @@
       egrid(1:2)=egrid(1:2)/eh2ev
 
 !-----------------------------------------------------------------------
+! CI filtering
+!-----------------------------------------------------------------------
+      if (lcifilter) then
+         call rdseamfiles2
+         call calc_projector2
+      endif
+
+!-----------------------------------------------------------------------
 ! Determine the number of IFGs being considered, which may be less than
 ! nintraj
 !-----------------------------------------------------------------------
@@ -148,6 +156,12 @@
       spec=0.0d0
 
 !-----------------------------------------------------------------------
+! Determine the state indices for each trajectory (main directory) being
+! considered
+!-----------------------------------------------------------------------
+      call getstaindx
+
+!-----------------------------------------------------------------------
 ! Determine the norm of the C-vectors for each IFG at each timestep
 ! using only the trajectories for which GAMESS/ORMAS results are
 ! available
@@ -155,17 +169,15 @@
       call getcnorm_gms
 
 !-----------------------------------------------------------------------
-! Determine the state indices for each trajectory (main directory) being
-! considered
-!-----------------------------------------------------------------------
-      call getstaindx
-
-!-----------------------------------------------------------------------
 ! Loop over the main trajectories (main directories), reading the
 ! TDMs, energy differences and coefficients for each timestep
 !-----------------------------------------------------------------------
       nfunc=0
       do i=1,nmaindir
+
+         ! BODGE
+         !if (staindx(i).eq.1) cycle
+         ! BODGE
 
          write(6,'(2a)') 'Processing directory: ',trim(amaindir(i))
          
@@ -186,7 +198,7 @@
          ! Determine which timesteps/subdirectories contribute to the
          ! spectrum
          call getcontrib_gmsspec(ncontrib,icontrib,coeff,nsubdir,&
-              ecore,ncore,amaindir(i),asubdir)
+              ecore,ncore,amaindir(i),asubdir,staindx(i))
 
          ! Cycle if no timesteps/subdirectories contribute to the
          ! spectrum
@@ -313,7 +325,7 @@
          ! Determine which timesteps/subdirectories contribute to the
          ! spectrum
          call getcontrib_gmsspec(ncontrib,icontrib,coeff,nsubdir,&
-              ecore,ncore,amaindir(n),asubdir)
+              ecore,ncore,amaindir(n),asubdir,staindx(n))
 
          ! Add the current contribution to the cnorm array
          do k=1,nsubdir
@@ -451,17 +463,19 @@
 !#######################################################################
 
     subroutine getcontrib_gmsspec(ncontrib,icontrib,coeff,nsubdir,&
-         ecore,ncore,amaindir,asubdir)
+         ecore,ncore,amaindir,asubdir,ista)
+
+      use expec, only: lcifilter,cifdthrsh,cifstate
 
       implicit none
 
-      integer                                :: ncontrib,nsubdir,i,j,&
-                                                unit
+      integer                                :: ncontrib,nsubdir,ista,&
+                                                i,j,unit
       integer, dimension(:), allocatable     :: icontrib
       integer, dimension(nsubdir)            :: ncore
       real*8, dimension(maxsta,nsubdir)      :: ecore
-      real*8, parameter                      :: thrsh=0.01d0
-      real*8                                 :: diff
+      real*8, parameter                      :: thrsh=0.0d0
+      real*8                                 :: diff,dist
       complex*16, dimension(nsubdir)         :: coeff
       character(len=120)                     :: amaindir
       character(len=120), dimension(nsubdir) :: asubdir
@@ -536,9 +550,81 @@
          endif
       enddo
 
+      ! Optional criterion: CI filtering
+      if (lcifilter) then
+
+         do i=1,nsubdir
+            
+            call getseamdistance(amaindir,asubdir(i),dist)
+            
+            if (dist.lt.cifdthrsh) then
+               
+               if (cifstate.eq.0) then
+                  icontrib(i)=0
+                  ncontrib=ncontrib-1
+               else
+                  if (ista.eq.cifstate) then
+                     icontrib(i)=0
+                     ncontrib=ncontrib-1
+                  endif
+               endif
+
+            endif
+
+         enddo
+
+      endif
+
       return
 
     end subroutine getcontrib_gmsspec
+
+!#######################################################################
+
+    subroutine getseamdistance(amaindir,asubdir,dist)
+
+      use sysdef
+      use expec
+      use intcoo
+
+      implicit none
+      
+      integer                   :: unit,i,j
+      real*8                    :: dist
+      real*8, dimension(natm*3) :: xcoo
+      character(len=120)        :: amaindir,asubdir
+      character(len=150)        :: filename,string
+      character(len=10)         :: atmp1,atmp2
+
+!-----------------------------------------------------------------------
+! Read the Cartesian coordinates from file
+!-----------------------------------------------------------------------
+      filename=trim(amaindir)//'/'//trim(asubdir)//'gamess/core.inp'
+
+      unit=20
+      open(unit,file=filename,form='formatted',status='old')
+
+10    read(unit,'(a)') string
+      if (index(string,'$DATA').eq.0 &
+           .and.index(string,'$data').eq.0) goto 10
+
+      read(unit,*)
+      read(unit,*)
+
+      do i=1,natm
+         read(unit,*) atmp1,atmp2,(xcoo(j),j=i*3-2,i*3)         
+      enddo
+
+!-----------------------------------------------------------------------
+! Calculate the 1st-order distance to the CI seam
+!-----------------------------------------------------------------------
+      dist=x2int(xcoo,1)
+
+      close(unit)
+
+      return
+
+    end subroutine getseamdistance
 
 !#######################################################################
 
@@ -828,7 +914,7 @@
          do k=1,ncore(n)
 
             ! Cycle if the current state lies above the IP
-            if (ecore(k,n).ge.ip(n)) cycle
+            !if (ecore(k,n).ge.ip(n)) cycle
 
             ! Prefactor
             csq=conjg(coeff(n))*coeff(n)

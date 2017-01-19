@@ -41,8 +41,6 @@
          atmindx=iatm2
       endif
 
-
-
       select case(inttyp)
 
       case(1) ! Bond length

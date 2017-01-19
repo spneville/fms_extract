@@ -1,6 +1,6 @@
   program fms_extract
     
-    use expec, only: ityp,vecfile
+    use expec, only: ityp,vecfile,ijob
     use sysdef, only: lmomrep
 
     implicit none
@@ -40,8 +40,10 @@
 ! N.B., we should only be doing this if the job type requires
 ! centroid information
 !-----------------------------------------------------------------------
-    call getcentroids
-    
+    if (ijob.eq.15.or.ijob.eq.16) then
+       call getcentroids
+    endif
+
 !-----------------------------------------------------------------------
 ! Calculate the requested expectation values
 !-----------------------------------------------------------------------
