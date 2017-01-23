@@ -328,7 +328,7 @@
 !-----------------------------------------------------------------------
 ! Imaginary part of the exponent
 !-----------------------------------------------------------------------
-      xi = (p1*r1-p2*r2)-rcent*pdiff
+      xi=(p1*r1-p2*r2)-rcent*pdiff
 
 !-----------------------------------------------------------------------
 ! One-dimensional overlap
@@ -398,7 +398,70 @@
       return
       
     end function pcent
+
+!#######################################################################
+! nucdip_integral: calculates the nuclear dipole matrix element
+!                  < g1 | mu_N | g2 > for a given pair of Gaussian
+!                  basis functions at a given timestep
+!#######################################################################
     
+    function nucdip_integral(ifg,n1,n2,istep) result(func)
+
+      use sysdef
+      use trajdef
+      
+      integer                  :: ifg,n1,n2,istep,i,c,indx
+      real*8                   :: a12,z,r1,r2,p1,p2,a1,a2
+      complex*16, dimension(3) :: func
+      complex*16               :: ovrlp,ci,czero,b12
+
+!-----------------------------------------------------------------------
+! Initialisation
+!-----------------------------------------------------------------------
+      ci=(0.0d0,1.0d0)
+      czero=(0.0d0,0.0d0)
+      func=czero
+
+!-----------------------------------------------------------------------
+! Calculation of < g1 | mu_N | g2 >
+!-----------------------------------------------------------------------
+      ! Overlap <g1|g2>
+      ovrlp=overlap_general_nuc_only(ifg,ifg,n1,n2,istep,istep)
+
+      ! Loop over atoms
+      do i=1,natm
+
+         ! Nuclear charge
+         z=atnum(i)
+
+         ! Loop over x, y and z components
+         do c=1,3
+
+            ! Cartesian coordinate index
+            indx=i*3-3+c
+
+            ! Calculation of < g1 | R_indx | g2 >
+            r1=traj(ifg)%r(n1,istep,indx)
+            r2=traj(ifg)%r(n2,istep,indx)
+            p1=traj(ifg)%p(n1,istep,indx)
+            p2=traj(ifg)%p(n2,istep,indx)
+            a1=alpha(indx)
+            a2=alpha(indx)
+            a12=2.0d0*alpha(indx)
+            b12=-2.0d0*(a1*r1+a2*r2) + ci*(p1-p2)
+
+            func(c)=func(c)+z*(-0.5*b12/a12)
+
+         enddo
+         
+      enddo
+
+      func=func*ovrlp
+
+      return
+
+    end function nucdip_integral
+
 !#######################################################################
 
     end module gausstools

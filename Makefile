@@ -17,6 +17,7 @@ MODPATH=./lib
 MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/errormod.f90 \
      $(MODPATH)/parsemod.f90 \
+     $(MODPATH)/utils.f90 \
      $(MODPATH)/mathlib.f90 \
      $(MODPATH)/sysdef.f90 \
      $(MODPATH)/kabschmod.f90 \
