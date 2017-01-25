@@ -160,7 +160,7 @@
 
       implicit none
 
-      integer                                       :: i,nsubdir,&
+      integer                                       :: i,itmp,nsubdir,&
                                                        tindx1,tindx2
       integer, dimension(:), allocatable            :: step,icontrib
       real*8, dimension(:,:,:,:), allocatable       :: dipmat
@@ -170,7 +170,8 @@
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
-      allocate(dipexpec(3,nstep/dstep+1))
+      itmp=nstep/dstep+1
+      allocate(dipexpec(3,itmp))
       dipexpec=(0.0d0,0.0d0)
 
 !-----------------------------------------------------------------------
@@ -202,7 +203,7 @@
 
          ! Nuclear contribution to the dipole expectation value
          call nuc_contrib(ifgindx_traj(i),tindx1,tindx1,nsubdir,step)
-
+         
          ! Electronic contribution to the dipole expectation value
          call elec_contrib(ifgindx_traj(i),tindx1,tindx1,nsubdir,&
               step,dipmat)
@@ -487,7 +488,9 @@
 
          ! Add the current contribution to the dipole expectation
          ! value
-         k=1+(step(i)-1)/dstep
+         !k=1+(step(i)-1)/dstep         
+         k=step(i)/dstep+1
+
          dipexpec(:,k)=dipexpec(:,k)+c12*gmug
 
       enddo
@@ -539,7 +542,9 @@
 
          ! Add the current contribution to the dipole expectation
          ! value
-         k=1+(step(i)-1)/dstep
+         !k=1+(step(i)-1)/dstep
+         k=step(i)/dstep+1
+
          dipexpec(:,k)=dipexpec(:,k)+c12*ovrlp*dipmat(i,s1,s2,:)
          
       enddo
@@ -557,7 +562,7 @@
 
       implicit none
 
-      integer :: unit,i,j
+      integer :: unit,i,j,indx
 
 !-----------------------------------------------------------------------
 ! Open the output file
@@ -568,15 +573,18 @@
 !-----------------------------------------------------------------------
 ! Write the dipole expectation values to file
 !-----------------------------------------------------------------------
-      
-      write(unit,*) 't (fs), Re <mu_x>, Re <mu_y>, Re <mu_z> &
-           Im <mu_x>, Im <mu_y>, Im <mu_z>'
+      write(unit,'(64a)') ('#', i=1,64)
+      write(unit,'(a)') '# t (fs)         <mu_x>            &
+           <mu_y>           <mu_z>'
+      write(unit,'(64a)') ('#', i=1,64)
 
       do i=1,nstep,dstep
-         write(unit,*) (i-1)*dt/41.341375d0,&
-              (real(dipexpec(j,i)), j=1,3)
-         !,&
-         !     (aimag(dipexpec(j,i)), j=1,3)
+         
+         indx=i/dstep+1
+
+         write(unit,'(F8.3,3(3x,E15.7))') (i-1)*dt/41.341375d0,&
+              (real(dipexpec(j,indx)), j=1,3)
+
       enddo
 
 !-----------------------------------------------------------------------

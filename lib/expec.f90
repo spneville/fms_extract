@@ -151,5 +151,7 @@
 
     ! Dipole operator expectation value
     character(len=120)                     :: colppdir_file
+    integer, dimension(2)                  :: projatm
+    logical                                :: ldipproj
     
   end module expec
