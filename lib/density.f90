@@ -455,8 +455,8 @@
          ! Generate random Cartesian coordinates according to
          ! the Gaussian distribution associated with the
          ! selected trajectory
-         sigma = sqrt(1./(4.*alpha(i)))
-         rsq = 2.
+         sigma=sqrt(1.0d0/(4.0d0*alpha(i)))
+         rsq=2.0d0
          do
             if(rsq.lt.1.d0.and.rsq.ne.0.d0)exit
             call random_number(dx1)

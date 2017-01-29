@@ -152,9 +152,6 @@
       ! Columbus post. prep. directory file
       colppdir_file=''
       
-      projatm=0
-      ldipproj=.false.
-
 !-----------------------------------------------------------------------
 ! Read input file name
 !-----------------------------------------------------------------------
@@ -839,23 +836,6 @@
                goto 100
             endif
 
-         else if (keyword(i).eq.'dipole_proj') then
-            ldipproj=.true.
-            if (keyword(i+1).eq.'=') then
-               i=i+2
-               read(keyword(i),*) projatm(1)
-               if (keyword(i+1).eq.',') then
-                  i=i+2
-                  read(keyword(i),*) projatm(2)
-               else
-                  msg='Two atom numbers must be given with the &
-                       dipole_proj keyword'
-                  call errcntrl(msg)
-               endif
-            else
-               goto 100
-            endif
-            
          else
             ! Exit if the keyword is not recognised
             msg='Unknown keyword: '//trim(keyword(i))
