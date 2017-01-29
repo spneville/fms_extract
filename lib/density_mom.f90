@@ -36,6 +36,18 @@
       logical(kind=4)                  :: lpop,lbound
 
 !-----------------------------------------------------------------------
+! Exit if the permutation of identical nuclei has been requested - I
+! currently cannot be arsed to implement this
+!-----------------------------------------------------------------------
+      if (npermute.gt.0) then
+         print*,
+         print*,"THE PERMUTATION OF IDENTICAL NUCLEI IS NOT YET &
+              SUPPORTED IN THE MOMENTUM REDUCED DENSITY CODE"
+         print*,
+         STOP
+      endif
+      
+!-----------------------------------------------------------------------
 ! Transform the FMS wavefunction to the momentum representation
 !-----------------------------------------------------------------------
       call pos2mom

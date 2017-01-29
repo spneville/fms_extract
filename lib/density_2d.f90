@@ -9,9 +9,9 @@
   contains
 
 !#######################################################################
-! reddens: calculates the reduced density wrt a given internal
-!          coordinate using a Monte Carlo procedure as described in
-!          J. Phys. Chem. A, 111, 11305 (2007)
+! reddens_2s: calculates the 2D reduced density wrt a given pair of
+!             internal coordinate using a Monte Carlo procedure as
+!             described in J. Phys. Chem. A, 111, 11305 (2007)
 !#######################################################################
 
     subroutine reddens_2d
@@ -458,24 +458,46 @@
 
       use trajdef
       use sysdef
+      use expec
+      use geomtools
 
       implicit none
 
       integer                   :: ibas,itraj,istep,i,j
-      real*8, dimension(3*natm) :: xcoo
+      real*8, dimension(3*natm) :: xcoo,r,ractual
       real*8                    :: rcent,sigma,dx1,dx2,rsq
 
+      !-----------------------------------------------------------------------
+! Set the geometry of the centre of the selected trajectory
+!-----------------------------------------------------------------------
+      r=traj(itraj)%r(ibas,istep,:)
+      
+!-----------------------------------------------------------------------
+! If requested, put the centre of the selected trajectory into
+! maximum coincidence with the reference geometry subject to the
+! permutation of a set of identical nuclei
+!-----------------------------------------------------------------------
+      if (npermute.gt.0) then
+         ractual=maxcoinc(r0,r)
+      else
+         ractual=r
+      endif
+      
+!-----------------------------------------------------------------------
+! Sample the Cartesian coordinates
+!-----------------------------------------------------------------------
       ! Loop over Cartesian coordinates
       do i=1,3*natm
 
          ! Centre of the selected trajectory
-         rcent=traj(itraj)%r(ibas,istep,i)
-
+         !rcent=traj(itraj)%r(ibas,istep,i)
+         rcent=ractual(i)
+         
          ! Generate random Cartesian coordinates according to
          ! the Gaussian distribution associated with the
          ! selected trajectory
-         sigma = sqrt(1./(4.*alpha(i)))
-         rsq = 2.
+         sigma=sqrt(1.0d0/(4.0d0*alpha(i)))
+         rsq=2.0d0
          do
             if(rsq.lt.1.d0.and.rsq.ne.0.d0)exit
             call random_number(dx1)
