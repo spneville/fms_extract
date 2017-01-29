@@ -201,11 +201,16 @@
          ! Determine the trajectory number
          call get_trajnum(tindx1,amaindir_traj(i))
 
-         ! Nuclear contribution to the dipole expectation value
-         call nuc_contrib(ifgindx_traj(i),tindx1,tindx1,nsubdir,step)
-         
-         ! Electronic contribution to the dipole expectation value
-         call elec_contrib(ifgindx_traj(i),tindx1,tindx1,nsubdir,&
+         !! Nuclear contribution to the dipole expectation value
+         !call nuc_contrib(ifgindx_traj(i),tindx1,tindx1,nsubdir,step)
+         !
+         !! Electronic contribution to the dipole expectation value
+         !call elec_contrib(ifgindx_traj(i),tindx1,tindx1,nsubdir,&
+         !     step,dipmat)
+
+         ! Contribution of the current trajectory to the dipole
+         ! expectation value
+         call dipexpec_1traj(ifgindx_traj(i),tindx1,tindx1,nsubdir,&
               step,dipmat)
          
       enddo
@@ -458,6 +463,62 @@
 
     end subroutine get_trajnum
 
+!#######################################################################
+
+    subroutine dipexpec_1traj(ifg,tindx1,tindx2,nsubdir,step,dipmat)
+
+      use expec
+      use sysdef
+      use trajdef
+      use gausstools
+
+      implicit none
+
+      integer                                :: ifg,tindx1,tindx2,&
+                                                nsubdir,i,k,s1,s2
+      integer, dimension(nsubdir)            :: step
+      real*8, dimension(nsubdir,nsta,nsta,3) :: dipmat
+      real*8, dimension(3)                   :: elintgrl
+      complex*16, dimension(3)               :: nucintgrl
+      complex*16                             :: c1,c2,c12,ovrlp
+
+! Loop over timesteps/subdirectories
+      do i=1,nsubdir
+
+         ! Coefficients
+         c1=traj(ifg)%coe(tindx1,step(i))
+         c2=traj(ifg)%coe(tindx2,step(i))
+         c12=conjg(c1)*c2
+
+         ! State indices
+         s1=traj(ifg)%ista(tindx1)
+         s2=traj(ifg)%ista(tindx2)
+
+         ! Nuclear contribution <g_j | mu_N,c | g_k >, c=x,y,z, for
+         ! the current timestep
+         nucintgrl=nucdip_integral(ifg,tindx1,tindx2,step(i))
+         
+         ! Approximate (1st-order saddlepoint approx.) electronic
+         ! contribution
+         ! <g_j | mu_el,IJ,c(R) | g_k > ~= mu_el,IJ,c(R_cent) S_jk, c=xyz,
+         ! for the current timestep
+         ! N.B., S_ij=1 for i=j
+         elintgrl=dipmat(i,s1,s2,:)
+         
+         ! Add the current contribution to the dipole expectation
+         ! value
+         !k=1+(step(i)-1)/dstep         
+         k=step(i)/dstep+1
+         !dipexpec(:,k)=dipexpec(:,k)+c12*(nucintgrl+elintgrl)
+         dipexpec(:,k)=dipexpec(:,k)+c12*abs(nucintgrl+elintgrl)
+         
+      enddo
+
+      
+      return
+      
+    end subroutine dipexpec_1traj
+      
 !#######################################################################
 
     subroutine nuc_contrib(ifg,tindx1,tindx2,nsubdir,step)

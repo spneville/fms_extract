@@ -1,7 +1,9 @@
-  module kabschmod
+  module geomtools
+
+    implicit none
 
   contains
-  
+
 !#######################################################################
 ! kabsch: puts the Cartesian coordinates x2 into maximum coincidence
 !         with the Cartesian coordinates x1 using the Kabsch algorithm
@@ -216,6 +218,106 @@
     end function finddet
 
 !#######################################################################
+      
+      recursive subroutine permutate(E, P) 
 
-  end module kabschmod
-  
+        implicit none
+        
+        integer, intent(in)  :: E(:)       ! array of objects 
+        integer, intent(out) :: P(:,:)     ! permutations of E 
+        integer              :: N, Nfac, i, k, &
+                                S(size(P,1)/size(E), size(E)-1) 
+
+        N = size(E); Nfac = size(P,1); 
+        
+        do i=1,N                           ! cases with E(i) in front 
+           if( N>1 ) call permutate((/E(:i-1), E(i+1:)/), S) 
+           forall(k=1:Nfac/N) P((i-1)*Nfac/N+k,:) = (/E(i), S(k,:)/) 
+        end do
+        
+      end subroutine permutate
+
+!#######################################################################
+! maxcoinc: puts the Cartesian coordinates x2 into maximum coincidence
+!           with the Cartesian coordinates x1 via the Kabsch
+!           algorithm and optionally the permutation of a set of
+!           identical nuclei
+!#######################################################################
+      
+      function maxcoinc(x1,x2) result(xmax)
+
+        use sysdef
+        use expec
+        use mathlib
+
+        integer                              :: i,j
+        integer, dimension(npermute)         :: indx
+        integer, dimension(natm)             :: is_perm
+        integer, dimension(:,:), allocatable :: P
+        integer                              :: n,ncomb,count
+        real*8, dimension(natm*3)            :: x1,x2,xmax,rotx,xcurr,&
+                                                xtmp
+        real*8                               :: rmsd,minrmsd
+        
+!-----------------------------------------------------------------------
+! Rotations and centre of mass translations only
+!-----------------------------------------------------------------------        
+        if (npermute.eq.0) then
+           call kabsch(x1,x2,rmsd,xmax)
+        endif
+
+!-----------------------------------------------------------------------        
+! Rotations and centre of mass translations + permutations of a set
+! of identical nuclei
+!-----------------------------------------------------------------------           
+        if (npermute.gt.0) then
+
+           ! Generate all permutations of the indices of the nuclei being
+           ! permuted
+           ncomb=factorial(npermute)
+           allocate(P(ncomb,npermute))
+           call permutate(pindx,P)
+
+           ! Determine the indices of the nuclei that are to be permuted
+           is_perm=0
+           do i=1,natm
+              do j=1,npermute
+                 if (pindx(j).eq.i) is_perm(i)=1
+              enddo
+           enddo
+
+           ! Loop over all permutations of the nuclei being permuted,
+           ! calculate the RMSD from the reference geometry x1 for each and save
+           ! the geometry with the lowest RMSD
+           minrmsd=1e+6
+           do i=1,ncomb
+
+              indx=P(i,:)
+              xcurr=x2
+
+              count=0
+              do j=1,natm
+                 if (is_perm(j).eq.1) then
+                    count=count+1
+                    xcurr(j*3-2:j*3)=x2(indx(count)*3-2:indx(count)*3)
+                 endif
+              enddo
+
+              call kabsch(x1,xcurr,rmsd,xtmp)              
+
+              if (rmsd.lt.minrmsd) then
+                 minrmsd=rmsd
+                 xmax=xtmp
+              endif
+
+           enddo
+              
+        endif
+
+        return
+        
+      end function maxcoinc
+        
+!#######################################################################
+    
+  end module geomtools

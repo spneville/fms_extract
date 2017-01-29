@@ -202,8 +202,7 @@
 
       use expec
       use sysdef
-      use kabschmod
-      use permutemod
+      use geomtools
       use mathlib
 
       implicit none
@@ -294,7 +293,7 @@
                         count=count+1
                         xcurr(j*3-2:j*3)=spawngeom(indx(count)*3-2:indx(count)*3)
                      endif
-                  enddo                  
+                  enddo
                   call kabsch(currgeom,xcurr,currrmsd,rotx)
                   if (currrmsd.lt.minrmsd) then
                      minrmsd=currrmsd

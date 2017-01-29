@@ -20,11 +20,10 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/utils.f90 \
      $(MODPATH)/mathlib.f90 \
      $(MODPATH)/sysdef.f90 \
-     $(MODPATH)/kabschmod.f90 \
-     $(MODPATH)/permutemod.f90 \
      $(MODPATH)/trajdef.f90 \
      $(MODPATH)/centdef.f90 \
      $(MODPATH)/expec.f90 \
+     $(MODPATH)/geomtools.f90 \
      $(MODPATH)/intcoo.f90 \
      $(MODPATH)/gausstools.f90 \
      $(MODPATH)/density.f90 \

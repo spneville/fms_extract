@@ -639,8 +639,7 @@
 
       use expec
       use sysdef
-      use kabschmod
-      use permutemod
+      use geomtools
       use mathlib
 
       real*8, dimension(natm*3) :: xcoo,xcurr,xmin,rotx,dvec

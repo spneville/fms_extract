@@ -19,7 +19,7 @@
     call rddir(adirfile,adir)
 
 !-----------------------------------------------------------------------
-! Read atom labels and masses
+! Read reference geometry Cartesian coordinates, atom labels and masses
 !-----------------------------------------------------------------------
     call rdgeom(adir)
 
@@ -1135,10 +1135,11 @@
 
       implicit none
       
-      integer                               :: unit,i,n
+      integer                               :: unit,i,j,n
       character(len=80), dimension(nintraj) :: adir
       character(len=100)                    :: ageom
-
+      character(len=2)                      :: atmp
+      
 !-----------------------------------------------------------------------
 ! Open the Geometry.dat file
 !-----------------------------------------------------------------------
@@ -1152,8 +1153,8 @@
       read(unit,*)
       read(unit,*) n
       natm=n
-      allocate(atlbl(n),atnum(n),atmass(n))
-
+      allocate(atlbl(n),atnum(n),atmass(n),r0(n*3))
+      
 !-----------------------------------------------------------------------
 ! Read the atom labels and determine the atomic masses/numbers
 !-----------------------------------------------------------------------
@@ -1173,6 +1174,16 @@
                  trim(atlbl(i))
             STOP
          endif         
+      enddo
+
+!-----------------------------------------------------------------------
+! Read the reference Cartesian coordinates
+!-----------------------------------------------------------------------
+      rewind(unit)
+      read(unit,*)
+      read(unit,*)
+      do i=1,n
+         read(unit,*) atmp,(r0(j), j=i*3-2,i*3)
       enddo
 
 !-----------------------------------------------------------------------
