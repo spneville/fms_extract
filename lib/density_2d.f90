@@ -27,7 +27,7 @@
       integer                             :: n,m,i,ibas,itmp,nalive,&
                                              iout,count
       integer, dimension(2)               :: ibin
-      real*8, dimension(3*natm)           :: xcoo
+      real*8, dimension(3*natm)           :: xcoo,xicoo
       real*8                              :: icoo,icoo2,dens,impfunc
       real*8, dimension(:,:), allocatable :: cent
       logical(kind=4)                     :: lpop,lbound
@@ -108,12 +108,12 @@
                count=0
 10             continue
                count=count+1
-               call sample_cart(ibas,i,n,xcoo)
+               call sample_cart(ibas,i,n,xcoo,xicoo)
               
                ! Calculate the internal coordinates of interest at the
                ! chosen current geometry
-               icoo=x2int(xcoo,1)
-               icoo2=x2int(xcoo,2)
+               icoo=x2int(xicoo,1)
+               icoo2=x2int(xicoo,2)
 
                ! If the internal coordinate value is not contained within
                ! the user specified interval, then sample a different
@@ -454,7 +454,7 @@
 !              Gaussian distributions
 !#######################################################################
 
-    subroutine sample_cart(ibas,itraj,istep,xcoo)
+    subroutine sample_cart(ibas,itraj,istep,xcoo,xicoo)
 
       use trajdef
       use sysdef
@@ -464,25 +464,9 @@
       implicit none
 
       integer                   :: ibas,itraj,istep,i,j
-      real*8, dimension(3*natm) :: xcoo,r,ractual
+      real*8, dimension(3*natm) :: xcoo,xicoo
       real*8                    :: rcent,sigma,dx1,dx2,rsq
 
-      !-----------------------------------------------------------------------
-! Set the geometry of the centre of the selected trajectory
-!-----------------------------------------------------------------------
-      r=traj(itraj)%r(ibas,istep,:)
-      
-!-----------------------------------------------------------------------
-! If requested, put the centre of the selected trajectory into
-! maximum coincidence with the reference geometry subject to the
-! permutation of a set of identical nuclei
-!-----------------------------------------------------------------------
-      if (npermute.gt.0) then
-         ractual=maxcoinc(r0,r)
-      else
-         ractual=r
-      endif
-      
 !-----------------------------------------------------------------------
 ! Sample the Cartesian coordinates
 !-----------------------------------------------------------------------
@@ -490,8 +474,7 @@
       do i=1,3*natm
 
          ! Centre of the selected trajectory
-         !rcent=traj(itraj)%r(ibas,istep,i)
-         rcent=ractual(i)
+         rcent=traj(itraj)%r(ibas,istep,i)
          
          ! Generate random Cartesian coordinates according to
          ! the Gaussian distribution associated with the
@@ -511,6 +494,21 @@
 
       enddo
 
+!-----------------------------------------------------------------------
+! If requested, put the sampled geometry into maximum coincidence with
+! the reference geometry subject to the permutation of a set of
+! identical nuclei
+!
+! Note the xicoo is only used in the calculation of the internal
+! coordinate value, whilst xcoo is used in the calculation of the
+! importance sampling function value
+!-----------------------------------------------------------------------
+      if (npermute.gt.0) then
+         xicoo=maxcoinc(r0,xcoo)
+      else
+         xicoo=xcoo
+      endif
+      
       return
 
     end subroutine sample_cart
