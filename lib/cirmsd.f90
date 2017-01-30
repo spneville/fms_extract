@@ -227,106 +227,66 @@
       integer                              :: n,ncomb,count,spawnindx,&
                                               ciindx
 
+!----------------------------------------------------------------------
+! Initialisation
+!----------------------------------------------------------------------
       nmatch=0
       nother=0
 
-      if (npermute.eq.0) then
+!----------------------------------------------------------------------
+! Matching of the spawn geometries to the CI geometries
+!----------------------------------------------------------------------      
+      ! Loop over spawn geometries
+      do i=1,nspawn
 
-         ! Loop over spawn geometries
-         do i=1,nspawn
-            if (spawninc(spawnindx).eq.0) cycle
-            fmin=9999999.9d0
-            ! Loop over ci geometries
-            do j=1,nci
-               ! Put the current spawn geometry into maximum coincidence
-               ! with the current ci geometry
-               currgeom=xci(j,:)
-               spawngeom=xspawn(i,:)
-               call kabsch(currgeom,spawngeom,rmsd(i,j),rotx)
-               ! If the current ci geometry is the closest yet to the
-               ! curret spawn geometry, then set imin=j
-               if (rmsd(i,j).lt.fmin.and.rmsd(i,j).lt.tol) then
-                  imin=j
-                  fmin=rmsd(i,j)
-               endif
-            enddo
-            if (fmin.lt.tol) then
-               nmatch(imin)=nmatch(imin)+1
-            else
-               nother=nother+1
+         ! Cycle if the current spawn event is not of interest
+         if (spawninc(spawnindx).eq.0) cycle
+
+         fmin=1e+6
+         ! Loop over ci geometries
+         do j=1,nci
+
+            ! Put the current spawn geometry into maximum coincidence
+            ! with the current CI geometry (note that the function
+            ! maxcoinc automatically deals with any requested
+            ! permutations of identical nuclei)
+            currgeom=xci(j,:)
+            spawngeom=xspawn(i,:)
+            xmin=maxcoinc(currgeom,spawngeom)
+
+            ! Displacement vector
+            dvec=currgeom-xmin
+
+            ! Projection of the displacement vector onto the branching
+            ! space
+            if (lproj) then
+               dvec=matmul(branchproj,dvec)
             endif
+
+            ! RMSD
+            rmsd(i,j)=sqrt(dot_product(dvec,dvec)/real(natm))
+            
+            ! If the current CI geometry is the closest yet to the
+            ! curret spawn geometry, then set imin=j
+            if (rmsd(i,j).lt.fmin.and.rmsd(i,j).lt.tol) then
+               imin=j
+               fmin=rmsd(i,j)
+            endif
+            
          enddo
 
-      else
+         ! Keep track of the number of matches
+         if (fmin.lt.tol) then
+            nmatch(imin)=nmatch(imin)+1
+         else
+            nother=nother+1
+         endif
          
-         ! Generate all permutations of the indices of the nuclei being
-         ! permuted
-         ncomb=factorial(npermute)
-         allocate(P(ncomb,npermute))
-         call permutate(pindx,P)
-         ! Determine the indices of the nuclei that are to be permuted
-         is_perm=0
-         do i=1,natm
-            do j=1,npermute
-               if (pindx(j).eq.i) is_perm(i)=1
-            enddo
-         enddo
-         ! Loop over spawn geometries
-         do spawnindx=1,nspawn            
-            if (spawninc(spawnindx).eq.0) cycle
-            fmin=9999999.9d0
-            ! Loop over ci geometries
-            do ciindx=1,nci
-               ! Set the current CI and spawn geometries
-               currgeom=xci(ciindx,:)
-               spawngeom=xspawn(spawnindx,:)               
-               ! Loop over all permutations of the nuclei being permuted,
-               ! calculate the RMSD from the CI geometry for each and save
-               ! the geometry with the lowest RMSD
-               minrmsd=1000000.0d0
-               do i=1,ncomb
-                  indx=P(i,:)
-                  xcurr=currgeom
-                  count=0
-                  do j=1,natm
-                     if (is_perm(j).eq.1) then
-                        count=count+1
-                        xcurr(j*3-2:j*3)=spawngeom(indx(count)*3-2:indx(count)*3)
-                     endif
-                  enddo
-                  call kabsch(currgeom,xcurr,currrmsd,rotx)
-                  if (currrmsd.lt.minrmsd) then
-                     minrmsd=currrmsd
-                     xmin=rotx
-                  endif
-               enddo
+      enddo
 
-               ! If the RMSD within the branching space has been
-               ! requested, then reset minrmsd to this
-               if (lproj) then
-                  dvec=currgeom-xmin
-                  dvec=matmul(branchproj,dvec)
-                  minrmsd=sqrt(dot_product(dvec,dvec)/real(natm))
-               endif
-
-               ! Set the minimum RMSD
-               rmsd(spawnindx,ciindx)=minrmsd
-               if (rmsd(spawnindx,ciindx).lt.fmin&
-                    .and.rmsd(spawnindx,ciindx).lt.tol) then
-                  imin=ciindx
-                  fmin=rmsd(spawnindx,ciindx)
-               endif
-            enddo
-            if (fmin.lt.tol) then
-               nmatch(imin)=nmatch(imin)+1
-            else
-               nother=nother+1
-            endif
-         enddo
-
-      endif
-
-      ! Output results      
+!----------------------------------------------------------------------      
+! Output results      
+!----------------------------------------------------------------------      
       write(6,*)
       sum=0.0d0
       do i=1,nci

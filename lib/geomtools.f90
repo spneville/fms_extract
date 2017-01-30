@@ -1,9 +1,15 @@
+!#######################################################################
+! Subroutines and functions for the manipulation of geometries.
+! Mainly to do with putting geometries into maximum coincidence wrt
+! potential energy preserving operations.
+!#######################################################################
+
   module geomtools
 
     implicit none
 
   contains
-
+    
 !#######################################################################
 ! kabsch: puts the Cartesian coordinates x2 into maximum coincidence
 !         with the Cartesian coordinates x1 using the Kabsch algorithm
@@ -133,7 +139,7 @@
       min=(min/natm)-(2.0d0/natm)*(sigma(1)+sigma(2)+sigma(3)*d)
 
 !-----------------------------------------------------------------------
-! Rotate the spawn geometry
+! Rotate the geometry x2
 !-----------------------------------------------------------------------
       do i=1,natm
          do j=1,3
@@ -168,6 +174,8 @@
     end subroutine kabsch
 
 !#######################################################################
+! finddet: returns the determinant of a matrix
+!#######################################################################
 
     function finddet(matrix,n)
 
@@ -180,7 +188,7 @@
 
       l=1
 
-      !Convert to upper triangular form
+      ! Convert to upper triangular form
       do k=1,n-1
          if (matrix(k,k).eq.0) then
             detexists = .false.
@@ -209,7 +217,7 @@
          enddo
       enddo
       
-      !Calculate determinant by finding product of diagonal elements
+      ! Calculate determinant by finding product of diagonal elements
       finddet=l
       do i=1,n
          finddet=finddet*matrix(i,i)
@@ -218,8 +226,11 @@
     end function finddet
 
 !#######################################################################
-      
-      recursive subroutine permutate(E, P) 
+! permutate: for the array of indices E, returns the array P of all
+!            possible permutations of these indices
+!#######################################################################
+    
+      recursive subroutine permutate(E,P) 
 
         implicit none
         
