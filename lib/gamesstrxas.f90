@@ -936,7 +936,7 @@
                   t=tgrid(1)+(j-1)*delt
                   spec(i,j)=spec(i,j)+(1.0d0/real(nifg))&
                        *prefac*vee*musq*shape &
-                       * exp(-((t-tcent)**2)/(2.0d0*tsig**2))
+                       *exp(-((t-tcent)**2)/(2.0d0*tsig**2))
                enddo
             enddo
 

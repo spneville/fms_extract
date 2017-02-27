@@ -5,7 +5,8 @@
     integer                                       :: nmaindir,nifg,&
                                                      ntrajdir,ncentdir
     integer, dimension(:), allocatable            :: ifgindx_traj,&
-                                                     ifgindx_cent
+                                                     ifgindx_cent,&
+                                                     staindx
     complex*16, dimension(:,:), allocatable       :: dipexpec
     character(len=120), dimension(:), allocatable :: amaindir,&
                                                      amaindir_traj,&
@@ -181,10 +182,18 @@
       call getnifg
 
 !-----------------------------------------------------------------------
+! Determine the state indices for each trajectory (main directory) being
+! considered
+!-----------------------------------------------------------------------
+      call getstaindx
+
+!-----------------------------------------------------------------------
 ! Trajectory contributions
 !-----------------------------------------------------------------------
       ! Loop over the main trajectory directories
       do i=1,ntrajdir
+
+         !if (staindx(i).eq.1) cycle
 
          ! Ouput our progress
          write(6,'(2a)') 'Processing directory: ',trim(amaindir_traj(i))
@@ -275,6 +284,31 @@
       return
 
     end subroutine getnifg
+
+!#######################################################################
+
+    subroutine getstaindx
+
+      implicit none
+
+      integer            :: i,unit
+      character(len=130) :: ain
+
+      allocate(staindx(ntrajdir))
+      staindx=0.0d0
+
+      unit=20
+
+      do i=1,nmaindir
+         ain=trim(amaindir(i))//'/state_id'
+         open(unit,file=ain,form='formatted',status='old')
+         read(unit,*) staindx(i)
+         close(unit)
+      enddo
+
+      return
+
+    end subroutine getstaindx
 
 !#######################################################################
 
@@ -482,7 +516,7 @@
       complex*16, dimension(3)               :: nucintgrl
       complex*16                             :: c1,c2,c12,ovrlp
 
-! Loop over timesteps/subdirectories
+      ! Loop over timesteps/subdirectories
       do i=1,nsubdir
 
          ! Coefficients
@@ -510,11 +544,11 @@
          !k=1+(step(i)-1)/dstep         
          k=step(i)/dstep+1
          !dipexpec(:,k)=dipexpec(:,k)+c12*(nucintgrl+elintgrl)
+
          dipexpec(:,k)=dipexpec(:,k)+c12*abs(nucintgrl+elintgrl)
          
       enddo
 
-      
       return
       
     end subroutine dipexpec_1traj

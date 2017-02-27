@@ -18,6 +18,7 @@
 !      4 <-> twisting angle
 !      5 <-> pyramidalisation angle
 !      6 <-> maximum pyramidalisation angle over two groups
+!      7 <-> maximum of two angles
 !     -1 <-> Cartesian vector (momentum representation only)
 !     -2 <-> Distance from a CI projected onto the branching space
 !#######################################################################
@@ -60,6 +61,9 @@
 
       case(6) ! Pyramidalisation angle, two groups
          call calc_pyr2(xcoo,intcoo)
+
+      case(7) ! Maxiumum of two angles
+         call calc_maxangle(xcoo,intcoo)
 
       case(-2) ! Distance from a CI projected onto the branching space
          call calc_dist_seam(xcoo,intcoo)
@@ -110,9 +114,6 @@
       
       intcoo=0.0d0
 
-!      k1=iatm(1)
-!      k2=iatm(2)
-      
       k1=atmindx(1)
       k2=atmindx(2)
 
@@ -142,10 +143,6 @@
 
       pi=4.0d0*datan(1.0d0)
 
-!      k1=iatm(1)
-!      k2=iatm(2)
-!      k3=iatm(3)
-     
       k1=atmindx(1)
       k2=atmindx(2)
       k3=atmindx(3)
@@ -189,11 +186,6 @@
       real*8, dimension(3)      :: vec1,vec2,vec3,tmp1,tmp2,tmp3,tmp4
 
       pi=4.0d0*datan(1.0d0)
-
-!      k1=iatm(1)
-!      k2=iatm(2)
-!      k3=iatm(3)
-!      k4=iatm(4)
 
       k1=atmindx(1)
       k2=atmindx(2)
@@ -240,15 +232,6 @@
       real*8, dimension(3)      :: vec1,vec2,vec3,vec4,cross1,cross2
       
       pi=4.0d0*datan(1.0d0)
-
-!      k1=iatm(1)
-!      k2=iatm(2)
-!      k3=iatm(3)
-!      k4=iatm(4)
-!      k5=iatm(5)
-!      k6=iatm(6)
-!      k7=iatm(7)
-!      k8=iatm(8)
 
       k1=atmindx(1)
       k2=atmindx(2)
@@ -309,11 +292,6 @@
       
       pi=4.0d0*datan(1.0d0)
 
-!      k1=iatm(1)
-!      k2=iatm(2)
-!      k3=iatm(3)
-!      k4=iatm(4)
-
       k1=atmindx(1)
       k2=atmindx(2)
       k3=atmindx(3)
@@ -337,7 +315,7 @@
 
       intcoo=acos(dot_product(r14xr23,r13xr12))
       intcoo=180.0d0-intcoo*180.0d0/pi
-
+      
       return
 
     end subroutine calc_pyr
@@ -357,13 +335,6 @@
                                    r14xr23,r13xr12,r41xr56,r46xr45
 
       pi=4.0d0*datan(1.0d0)
-
-!      k1=iatm(1)
-!      k2=iatm(2)
-!      k3=iatm(3)
-!      k4=iatm(4)
-!      k5=iatm(5)
-!      k6=iatm(6)
 
       k1=atmindx(1)
       k2=atmindx(2)
@@ -409,6 +380,77 @@
       return
 
     end subroutine calc_pyr2
+
+!#######################################################################
+
+    subroutine calc_maxangle(xcoo,intcoo)
+
+      use expec
+      use sysdef
+
+      implicit none
+
+      integer                   :: i,k1,k2,k3
+      real*8, dimension(natm*3) :: xcoo
+      real*8                    :: intcoo,dp,len1,len2,pi,ang1,ang2
+      real*8, dimension(3)      :: vec1,vec2
+
+      pi=4.0d0*datan(1.0d0)
+
+      ! Angle 1
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+
+      len1=0.0d0
+      len2=0.0d0
+
+      do i=1,3
+         vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+         vec2(i)=xcoo(k2*3-3+i)-xcoo(k3*3-3+i)
+         len1=len1+vec1(i)**2
+         len2=len2+vec2(i)**2
+      enddo
+
+      len1=sqrt(len1)
+      len2=sqrt(len2)
+
+      dp=dot_product(vec1,vec2)
+
+      ang1=dp/(len1*len2)
+      ang1=dacos(ang1)
+      ang1=ang1*180.0d0/pi
+
+      ! Angle 2
+      k1=atmindx(4)
+      k2=atmindx(5)
+      k3=atmindx(6)
+
+      len1=0.0d0
+      len2=0.0d0
+
+      do i=1,3
+         vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+         vec2(i)=xcoo(k2*3-3+i)-xcoo(k3*3-3+i)
+         len1=len1+vec1(i)**2
+         len2=len2+vec2(i)**2
+      enddo
+
+      len1=sqrt(len1)
+      len2=sqrt(len2)
+
+      dp=dot_product(vec1,vec2)
+
+      ang2=dp/(len1*len2)
+      ang2=dacos(ang2)
+      ang2=ang2*180.0d0/pi
+      
+      ! Maximum angle
+      intcoo=max(ang1,ang2)
+
+      return
+
+    end subroutine calc_maxangle
 
 !#######################################################################
 

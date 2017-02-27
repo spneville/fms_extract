@@ -254,7 +254,7 @@
 
          else if (keyword(i).eq.'internal') then
             if (keyword(i+1).eq.'=') then
-               i=i+2               
+               i=i+2
                if (keyword(i).eq.'length') then
                   ityp=1
                   ndef=2
@@ -272,6 +272,9 @@
                   ndef=4
                else if (keyword(i).eq.'pyr2') then
                   ityp=6
+                  ndef=6
+               else if (keyword(i).eq.'maxangle') then
+                  ityp=7
                   ndef=6
                else if (keyword(i).eq.'cartvec') then
                   ityp=-1
@@ -299,9 +302,9 @@
                enddo
             endif
             
-            else if (keyword(i).eq.'internal2') then
+         else if (keyword(i).eq.'internal2') then
             if (keyword(i+1).eq.'=') then
-               i=i+2               
+               i=i+2
                if (keyword(i).eq.'length') then
                   ityp2=1
                   ndef=2
@@ -319,6 +322,9 @@
                   ndef=4
                else if (keyword(i).eq.'pyr2') then
                   ityp2=6
+                  ndef=6
+               else if (keyword(i).eq.'maxangle') then
+                  ityp2=7
                   ndef=6
                else if (keyword(i).eq.'cartvec') then
                   ityp2=-1
@@ -339,13 +345,13 @@
                   msg='Atom numbers for internal coordinate type '&
                        &//trim(keyword(i))//' not given'
                   call errcntrl(msg)
-               endif               
+               endif
                do j=1,ndef
                   i=i+2
                   read(keyword(i),*) iatm2(j)
                enddo
             endif
-
+               
             ! For a rectilinear Cartesian vector, read the name of the
             ! xyz file containing the reference geometry and the
             ! vector
