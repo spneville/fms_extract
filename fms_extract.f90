@@ -335,6 +335,15 @@
                else if (keyword(i).eq.'maxangle') then
                   ityp2=7
                   ndef=6
+               else if (keyword(i).eq.'minangle') then
+                  ityp2=8
+                  ndef=6
+               else if (keyword(i).eq.'anglediff') then
+                  ityp2=9
+                  ndef=6
+               else if (keyword(i).eq.'pyrdiff') then
+                  ityp2=10
+                  ndef=6
                else if (keyword(i).eq.'cartvec') then
                   ityp2=-1
                else if (keyword(i).eq.'seam') then
