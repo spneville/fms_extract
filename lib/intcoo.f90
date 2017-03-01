@@ -19,6 +19,10 @@
 !      5 <-> pyramidalisation angle
 !      6 <-> maximum pyramidalisation angle over two groups
 !      7 <-> maximum of two angles
+!      8 <-> maximum of two angles
+!      9 <-> absolute difference between two angles
+!     10 <-> absolute difference between to pyramidalisation
+!            angles
 !     -1 <-> Cartesian vector (momentum representation only)
 !     -2 <-> Distance from a CI projected onto the branching space
 !#######################################################################
@@ -65,7 +69,18 @@
       case(7) ! Maxiumum of two angles
          call calc_maxangle(xcoo,intcoo)
 
-      case(-2) ! Distance from a CI projected onto the branching space
+      case(8) ! Minimum of two angles
+         call calc_minangle(xcoo,intcoo)
+
+      case(9) ! Absolute difference between two angles
+         call calc_diffangle(xcoo,intcoo)
+
+      case(10) ! Absolute difference between two pyramidalisation
+               ! angles
+         call calc_diffpyr(xcoo,intcoo)
+
+      case(-2) ! Distance from a CI projected onto the branching
+               ! space
          call calc_dist_seam(xcoo,intcoo)
          
       end select
@@ -371,7 +386,7 @@
       r41xr56=r41xr56/sqrt(dot_product(r41xr56,r41xr56))
       r46xr45=r46xr45/sqrt(dot_product(r46xr45,r46xr45))
 
-      val1=acos(dot_product(r14xr23,r13xr12))      
+      val1=acos(dot_product(r14xr23,r13xr12))
       val2=acos(dot_product(r41xr56,r46xr45))
 
       intcoo=max(val1,val2)
@@ -384,6 +399,149 @@
 !#######################################################################
 
     subroutine calc_maxangle(xcoo,intcoo)
+
+      use expec
+      use sysdef
+      use mathlib
+
+      implicit none
+
+      integer                   :: i,k1,k2,k3
+      real*8, dimension(natm*3) :: xcoo
+      real*8                    :: intcoo,dp,len1,len2,pi,ang1,ang2
+      real*8, dimension(3)      :: vec1,vec2
+
+!      ! MASSIVE BODGE
+!      ! TAKE THE ANGLE OF THE CH2 GROUP IN ETHYLENE FOR WHICH
+!      ! THE DEGREE OF PYRAMIDALISATION IS GREATEST
+!      integer :: k4,k5,k6
+!      real*8, dimension(3)      :: r14,r23,r13,r12,r41,r56,r46,r45,&
+!                                   r14xr23,r13xr12,r41xr56,r46xr45
+!      real*8 :: val1,val2
+!      pi=4.0d0*datan(1.0d0)
+!      k1=1
+!      k2=3
+!      k3=4
+!      k4=2
+!      k5=5
+!      k6=6
+!      do i=1,3
+!         r14(i)=xcoo(k4*3-3+i)-xcoo(k1*3-3+i)
+!         r23(i)=xcoo(k3*3-3+i)-xcoo(k2*3-3+i)
+!         r13(i)=xcoo(k3*3-3+i)-xcoo(k1*3-3+i)
+!         r12(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)
+!         r41(i)=xcoo(k1*3-3+i)-xcoo(k4*3-3+i)
+!         r56(i)=xcoo(k6*3-3+i)-xcoo(k5*3-3+i)
+!         r46(i)=xcoo(k6*3-3+i)-xcoo(k4*3-3+i)
+!         r45(i)=xcoo(k5*3-3+i)-xcoo(k4*3-3+i)
+!      enddo
+!      r14=r14/sqrt(dot_product(r14,r14))
+!      r23=r23/sqrt(dot_product(r23,r23))
+!      r13=r13/sqrt(dot_product(r13,r13))
+!      r12=r12/sqrt(dot_product(r12,r12))
+!      r41=r41/sqrt(dot_product(r41,r41))
+!      r56=r56/sqrt(dot_product(r56,r56))
+!      r46=r46/sqrt(dot_product(r46,r46))
+!      r45=r45/sqrt(dot_product(r45,r45))
+!
+!      r14xr23=cross_product(r14,r23)
+!      r13xr12=cross_product(r13,r12)
+!      r41xr56=cross_product(r41,r56)
+!      r46xr45=cross_product(r46,r45)
+!      r14xr23=r14xr23/sqrt(dot_product(r14xr23,r14xr23))
+!      r13xr12=r13xr12/sqrt(dot_product(r13xr12,r13xr12))
+!      r41xr56=r41xr56/sqrt(dot_product(r41xr56,r41xr56))
+!      r46xr45=r46xr45/sqrt(dot_product(r46xr45,r46xr45))
+!
+!      val1=acos(dot_product(r14xr23,r13xr12))
+!      val2=acos(dot_product(r41xr56,r46xr45))
+!      if (val1.gt.val2) then
+!         k1=3
+!         k2=1
+!         k3=4
+!      else
+!         k1=5
+!         k2=2
+!         k3=6
+!      endif
+!      len1=0.0d0
+!      len2=0.0d0
+!      do i=1,3
+!         vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+!         vec2(i)=xcoo(k2*3-3+i)-xcoo(k3*3-3+i)
+!         len1=len1+vec1(i)**2
+!         len2=len2+vec2(i)**2
+!      enddo
+!      len1=sqrt(len1)
+!      len2=sqrt(len2)
+!      dp=dot_product(vec1,vec2)
+!      ang1=dp/(len1*len2)
+!      ang1=dacos(ang1)
+!      ang1=ang1*180.0d0/pi
+!      intcoo=ang1
+!      return
+!      ! MASSIVE BODGE
+      
+      pi=4.0d0*datan(1.0d0)
+      
+      ! Angle 1
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+
+      len1=0.0d0
+      len2=0.0d0
+
+      do i=1,3
+         vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+         vec2(i)=xcoo(k2*3-3+i)-xcoo(k3*3-3+i)
+         len1=len1+vec1(i)**2
+         len2=len2+vec2(i)**2
+      enddo
+
+      len1=sqrt(len1)
+      len2=sqrt(len2)
+
+      dp=dot_product(vec1,vec2)
+
+      ang1=dp/(len1*len2)
+      ang1=dacos(ang1)
+      ang1=ang1*180.0d0/pi
+
+      ! Angle 2
+      k1=atmindx(4)
+      k2=atmindx(5)
+      k3=atmindx(6)
+
+      len1=0.0d0
+      len2=0.0d0
+
+      do i=1,3
+         vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+         vec2(i)=xcoo(k2*3-3+i)-xcoo(k3*3-3+i)
+         len1=len1+vec1(i)**2
+         len2=len2+vec2(i)**2
+      enddo
+
+      len1=sqrt(len1)
+      len2=sqrt(len2)
+
+      dp=dot_product(vec1,vec2)
+
+      ang2=dp/(len1*len2)
+      ang2=dacos(ang2)
+      ang2=ang2*180.0d0/pi
+      
+      ! Maximum angle
+      intcoo=max(ang1,ang2)
+
+      return
+
+    end subroutine calc_maxangle
+
+!#######################################################################
+
+    subroutine calc_minangle(xcoo,intcoo)
 
       use expec
       use sysdef
@@ -446,11 +604,143 @@
       ang2=ang2*180.0d0/pi
       
       ! Maximum angle
-      intcoo=max(ang1,ang2)
+      intcoo=min(ang1,ang2)
+      
+      return
+
+    end subroutine calc_minangle
+
+!#######################################################################
+
+    subroutine calc_diffangle(xcoo,intcoo)
+
+      use expec
+      use sysdef
+
+      implicit none
+
+      integer                   :: i,k1,k2,k3
+      real*8, dimension(natm*3) :: xcoo
+      real*8                    :: intcoo,dp,len1,len2,pi,ang1,ang2
+      real*8, dimension(3)      :: vec1,vec2
+
+      pi=4.0d0*datan(1.0d0)
+
+      ! Angle 1
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+
+      len1=0.0d0
+      len2=0.0d0
+
+      do i=1,3
+         vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+         vec2(i)=xcoo(k2*3-3+i)-xcoo(k3*3-3+i)
+         len1=len1+vec1(i)**2
+         len2=len2+vec2(i)**2
+      enddo
+
+      len1=sqrt(len1)
+      len2=sqrt(len2)
+
+      dp=dot_product(vec1,vec2)
+
+      ang1=dp/(len1*len2)
+      ang1=dacos(ang1)
+      ang1=ang1*180.0d0/pi
+
+      ! Angle 2
+      k1=atmindx(4)
+      k2=atmindx(5)
+      k3=atmindx(6)
+
+      len1=0.0d0
+      len2=0.0d0
+
+      do i=1,3
+         vec1(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)         
+         vec2(i)=xcoo(k2*3-3+i)-xcoo(k3*3-3+i)
+         len1=len1+vec1(i)**2
+         len2=len2+vec2(i)**2
+      enddo
+
+      len1=sqrt(len1)
+      len2=sqrt(len2)
+
+      dp=dot_product(vec1,vec2)
+
+      ang2=dp/(len1*len2)
+      ang2=dacos(ang2)
+      ang2=ang2*180.0d0/pi
+      
+      ! Absolute angle difference
+      intcoo=abs(ang1-ang2)
+      
+      return
+
+    end subroutine calc_diffangle
+
+!#######################################################################
+
+        subroutine calc_diffpyr(xcoo,intcoo)
+
+      use expec
+      use sysdef
+      use mathlib
+
+      integer                   :: k1,k2,k3,k4,k5,k6,i
+      real*8, dimension(natm*3) :: xcoo
+      real*8                    :: intcoo,val1,val2,pi
+      real*8, dimension(3)      :: r14,r23,r13,r12,r41,r56,r46,r45,&
+                                   r14xr23,r13xr12,r41xr56,r46xr45
+
+      pi=4.0d0*datan(1.0d0)
+
+      k1=atmindx(1)
+      k2=atmindx(2)
+      k3=atmindx(3)
+      k4=atmindx(4)
+      k5=atmindx(5)
+      k6=atmindx(6)
+
+      do i=1,3
+         r14(i)=xcoo(k4*3-3+i)-xcoo(k1*3-3+i)
+         r23(i)=xcoo(k3*3-3+i)-xcoo(k2*3-3+i)
+         r13(i)=xcoo(k3*3-3+i)-xcoo(k1*3-3+i)
+         r12(i)=xcoo(k2*3-3+i)-xcoo(k1*3-3+i)
+         r41(i)=xcoo(k1*3-3+i)-xcoo(k4*3-3+i)
+         r56(i)=xcoo(k6*3-3+i)-xcoo(k5*3-3+i)
+         r46(i)=xcoo(k6*3-3+i)-xcoo(k4*3-3+i)
+         r45(i)=xcoo(k5*3-3+i)-xcoo(k4*3-3+i)
+      enddo
+      r14=r14/sqrt(dot_product(r14,r14))
+      r23=r23/sqrt(dot_product(r23,r23))
+      r13=r13/sqrt(dot_product(r13,r13))
+      r12=r12/sqrt(dot_product(r12,r12))
+      r41=r41/sqrt(dot_product(r41,r41))
+      r56=r56/sqrt(dot_product(r56,r56))
+      r46=r46/sqrt(dot_product(r46,r46))
+      r45=r45/sqrt(dot_product(r45,r45))
+
+      r14xr23=cross_product(r14,r23)
+      r13xr12=cross_product(r13,r12)
+      r41xr56=cross_product(r41,r56)
+      r46xr45=cross_product(r46,r45)
+      r14xr23=r14xr23/sqrt(dot_product(r14xr23,r14xr23))
+      r13xr12=r13xr12/sqrt(dot_product(r13xr12,r13xr12))
+      r41xr56=r41xr56/sqrt(dot_product(r41xr56,r41xr56))
+      r46xr45=r46xr45/sqrt(dot_product(r46xr45,r46xr45))
+
+      val1=acos(dot_product(r14xr23,r13xr12))
+      val2=acos(dot_product(r41xr56,r46xr45))
+
+      ! Absolute difference between the pyramidalisation angles
+      intcoo=abs(val1-val2)*180.0d0/pi
 
       return
 
-    end subroutine calc_maxangle
+    end subroutine calc_diffpyr
 
 !#######################################################################
 

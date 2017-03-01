@@ -726,6 +726,10 @@
          lab='Pyr'
       else if (i.eq.6) then
          lab='Pyr2'
+      else if (i.eq.7) then
+         lab='MaxAng'
+      else if (i.eq.8) then
+         lab='MinAng'
       endif
 
     end function getlabel
