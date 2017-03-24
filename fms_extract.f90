@@ -1,7 +1,7 @@
   program fms_extract
     
-    use expec, only: ityp,vecfile,ijob
-    use sysdef, only: lmomrep
+    use expec, only: ityp,vecfile,ijob,tfinal
+    use sysdef, only: lmomrep,tf
 
     implicit none
     
@@ -33,6 +33,14 @@
 ! trajectories
 !-----------------------------------------------------------------------
     call rdtraj(adir)
+
+!-----------------------------------------------------------------------
+! If it has not been set by the user, set tfinal to tf
+!
+! N.B., tf is the propagation time, whereas tfinal is the final time
+!       to be used in the expectation value or spectrum calculations
+!-----------------------------------------------------------------------
+    if (tfinal.eq.0.0d0) tfinal=tf
 
 !-----------------------------------------------------------------------
 ! Set up the centroids
@@ -244,6 +252,9 @@
                else if (keyword(i).eq.'dipole') then
                   ijob=16
                   
+               else if (keyword(i).eq.'adc_orben') then
+                  ijob=17
+
                else
                   msg='Unknown job type: '//trim(keyword(i))
                   call errcntrl(msg)
@@ -1032,7 +1043,14 @@
             call errcntrl(msg)
          endif
       endif
-      
+
+      if (ijob.eq.17) then
+         if (adcdir_file.eq.'') then
+            msg='The name of the ADC directory file has not been given'
+            call errcntrl(msg)
+         endif
+      endif
+
 !-----------------------------------------------------------------------
 ! If the job type is the calculation of a TRPES, then:
 !
@@ -2576,6 +2594,7 @@
       use gamesstrxas
       use dipoleprep
       use dipole
+      use adc_orben
       
       implicit none
 
@@ -2609,7 +2628,8 @@
 !     15 <-> Preparation of input for the calculation of dipole
 !            matrix elements (a pre-requesite for the calculation
 !            dipole expectation values)
-!     16 <-> Calculation of dipole expectation values      
+!     16 <-> Calculation of dipole expectation values
+!     17 <-> Incoherently averaged ADC orbital energies
 !-----------------------------------------------------------------------   
       if (ijob.eq.1) then
          call calcadpop
@@ -2641,6 +2661,8 @@
          call prep_dipole_inp
       else if (ijob.eq.16) then
          call calc_dipole
+      else if (ijob.eq.17) then
+         call calc_adc_orben
       endif
 
       return

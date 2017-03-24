@@ -43,7 +43,8 @@ MODS=$(MODPATH)/iomod.f90 \
      $(MODPATH)/gamessprep.f90 \
      $(MODPATH)/gamesstrxas.f90 \
      $(MODPATH)/dipoleprep.f90 \
-     $(MODPATH)/dipole.f90
+     $(MODPATH)/dipole.f90 \
+     $(MODPATH)/adc_orben.f90
 
 ########################################################################
 # Compilation

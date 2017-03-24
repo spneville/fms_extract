@@ -348,7 +348,6 @@
       real*8                    :: intcoo,val1,val2,pi
       real*8, dimension(3)      :: r14,r23,r13,r12,r41,r56,r46,r45,&
                                    r14xr23,r13xr12,r41xr56,r46xr45
-
       pi=4.0d0*datan(1.0d0)
 
       k1=atmindx(1)

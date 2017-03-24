@@ -63,8 +63,13 @@
       ! Loop over timesteps
       do n=1,nstep,dstep
 
+         ! Exit if we have gone beyond tfinal
+         if (dt*(n-1).gt.tfinal) exit
+
+         ! Output our progress
          write(6,'(2x,a3,F12.4,1x,a4)') 't =',dt*(n-1),'a.u.'
 
+         ! Initialise the density for the current timestep
          pfunc=0.0d0
 
          ! Loop over IFGs
@@ -102,7 +107,7 @@
                ! chosen current geometry
                !icoo=x2int(xcoo,1)
                icoo=x2int(xicoo,1)
-
+               
                ! If the internal coordinate value is not contained within
                ! the user specified interval, then sample a different
                ! Cartesian geometry

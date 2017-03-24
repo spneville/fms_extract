@@ -75,8 +75,13 @@
       ! Loop over timesteps
       do n=1,nstep,dstep
 
+         ! Exit if we have gone beyond tfinal
+         if (dt*(n-1).gt.tfinal) exit
+
+         ! Output our progress
          write(6,'(2x,a3,F12.4,1x,a4)') 't =',dt*(n-1),'a.u.'
 
+         ! Initialise the density for the current timestep
          pfunc_2d=0.0d0
 
          ! Loop over IFGs
@@ -730,6 +735,10 @@
          lab='MaxAng'
       else if (i.eq.8) then
          lab='MinAng'
+      else if (i.eq.9) then
+         lab='Angle difference'
+      else if (i.eq.10) then
+         lab='Pyr difference'
       endif
 
     end function getlabel

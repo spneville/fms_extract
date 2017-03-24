@@ -316,7 +316,7 @@
       
       return
 
-    end subroutine getnifg 
+    end subroutine getnifg
 
 !#######################################################################
 
