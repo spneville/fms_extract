@@ -240,7 +240,7 @@
       do i=1,nspawn
 
          ! Cycle if the current spawn event is not of interest
-         if (spawninc(spawnindx).eq.0) cycle
+         if (spawninc(i).eq.0) cycle
 
          fmin=1e+6
          ! Loop over ci geometries
@@ -252,7 +252,7 @@
             ! permutations of identical nuclei)
             currgeom=xci(j,:)
             spawngeom=xspawn(i,:)
-            xmin=maxcoinc(currgeom,spawngeom)
+            xmin=maxcoinc(currgeom,spawngeom)            
 
             ! Displacement vector
             dvec=currgeom-xmin
@@ -419,7 +419,7 @@
       allocate(spawninc(nspawn))
 
       spawninc=0
-
+      
       if (cirmsdsta(1).eq.0) then
          spawninc=1
       else
