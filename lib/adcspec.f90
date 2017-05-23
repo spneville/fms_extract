@@ -1915,7 +1915,7 @@
             par(nfunc,1)=4.0d0*pi*csq/c_au
             ! 'Renormalise'
             par(nfunc,1)=par(nfunc,1)/cnorm(ifg,n)
-
+            
             ! (2) TDM^2
             par(nfunc,2)=tdmsq(n,k)
 
@@ -1996,7 +1996,7 @@
                
                ! Prefactor
                prefac=par(k,1)
-
+               
                ! TDM^2
                musq=par(k,2)
 

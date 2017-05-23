@@ -5,10 +5,10 @@
 
 F90OPTS = -g
 
-FLAGS=-llapack \
+#FLAGS=-llapack \
       -lblas \
 
-#FLAGS=/usr/lib64/libblas.so.3 /usr/lib64/liblapack.so.3
+FLAGS=/usr/lib64/libblas.so.3 /usr/lib64/liblapack.so.3
 
 ########################################################################
 # Modules
