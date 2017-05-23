@@ -3,14 +3,18 @@
     save
     
     integer                                       :: nmaindir,nifg,&
-                                                     ne,nt,maxfunc,nfunc
-    integer, dimension(:), allocatable            :: staindx,ifgindx
+                                                     ne,nt,maxfunc,&
+                                                     nfunc
+    integer, dimension(:), allocatable            :: staindx,ifgindx,&
+                                                     trajindx
     integer                                       :: failunit,okunit,cifunit
     integer                                       :: maxion
+    integer                                       :: nosc0
     real*8, dimension(:,:), allocatable           :: spec,par,cnorm
     real*8, parameter                             :: eh2ev=27.2113845d0
     real*8, parameter                             :: c_au=137.03604d0
     real*8                                        :: pi=3.14159265358979d0
+    real*8, dimension(:), allocatable             :: osc0,de0
     character(len=120), dimension(:), allocatable :: amaindir
     logical                                       :: lcont,lbound,&
                                                      ldyson
@@ -174,10 +178,31 @@
       endif
 
 !-----------------------------------------------------------------------
+! If the differential absorption spectrum is to be calculated, then
+! read the reference oscillator strength file.
+! N.B., this is only currently compatible with bound spectrum
+! calculations
+!-----------------------------------------------------------------------
+      if (ldiff) then
+         if (.not.lbound) then
+            write(6,'(/,2x,a,/)') 'The calculation of differential &
+                 absorption spectra is currently only possible for &
+                 bound spectra.'
+            STOP
+         endif
+         call rdosc0
+      endif
+
+!-----------------------------------------------------------------------
 ! Determine the number of IFGs being considered, which may be less than
 ! nintraj
 !-----------------------------------------------------------------------
       call getnifg
+
+!-----------------------------------------------------------------------
+! Read the trajectory indices for each main directory
+!-----------------------------------------------------------------------
+      call gettrajindx
 
 !-----------------------------------------------------------------------
 ! Allocate arrays
@@ -283,6 +308,59 @@
 
 !#######################################################################
 
+    subroutine rdosc0
+
+      use expec
+
+      implicit none
+
+      integer :: unit,i
+
+!-----------------------------------------------------------------------
+! Open the osc0 file
+!-----------------------------------------------------------------------
+      unit=30
+      open(unit,file=osc0file,form='formatted',status='old')
+
+!-----------------------------------------------------------------------
+! Determine the no. oscillator strengths and allocate arrays
+!-----------------------------------------------------------------------
+      nosc0=0
+5     read(unit,*,end=10)
+      nosc0=nosc0+1
+      goto 5
+
+10    continue
+
+      allocate(osc0(nosc0))
+      osc0=0.0d0
+
+      allocate(de0(nosc0))
+      de0=0.0d0
+
+!-----------------------------------------------------------------------
+! Read the osc0 file
+!-----------------------------------------------------------------------
+      rewind(unit)
+      
+      do i=1,nosc0
+         read(unit,*) de0(i),osc0(i)
+      enddo
+
+      ! Convert the excitation energies to Eh
+      de0=de0/eh2ev
+
+!-----------------------------------------------------------------------
+! Close the osc0 file
+!-----------------------------------------------------------------------
+      close(unit)
+
+      return
+
+    end subroutine rdosc0
+
+!#######################################################################
+
     subroutine getnifg
 
       use sysdef
@@ -293,6 +371,9 @@
       integer, dimension(nintraj) :: cnt
       character(len=130)          :: ain
 
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
       allocate(ifgindx(nmaindir))
              
 !-----------------------------------------------------------------------
@@ -317,6 +398,46 @@
       return
 
     end subroutine getnifg
+
+!#######################################################################
+
+    subroutine gettrajindx
+
+      use trajdef
+      use sysdef
+
+      implicit none
+
+      integer          :: i,k
+      character(len=5) :: aindx
+
+!-----------------------------------------------------------------------
+! Allocate arrays
+!-----------------------------------------------------------------------
+      allocate(trajindx(nmaindir))
+      trajindx=0
+
+!-----------------------------------------------------------------------
+! Loop over the main directories, determining the trajectory index
+! for each
+!-----------------------------------------------------------------------
+      do i=1,nmaindir
+         
+         k=index(amaindir(i),'_traj')
+         aindx=trim(amaindir(i)(k+5:))
+         
+         k=index(aindx,'/')
+         if (k.ne.0) then
+            aindx=aindx(1:k-1)
+         endif
+
+         read(aindx,*) trajindx(i)
+
+      enddo
+
+      return
+
+    end subroutine gettrajindx
 
 !#######################################################################
 
@@ -435,13 +556,28 @@
 
       implicit none
 
-      integer                                       :: n,k,ifg,itmp,&
-                                                       nsubdir,&
-                                                       ncontrib
-      integer, dimension(:), allocatable            :: step,icontrib
+      integer                                       :: m,n,k,ifg,&
+                                                       itmp,nsubdir1,&
+                                                       nsubdir2,&
+                                                       ncontrib1,&
+                                                       ncontrib2,&
+                                                       tindx1,tindx2,&
+                                                       i,i1,i2
+      integer, dimension(:), allocatable            :: step1,step2,&
+                                                       icontrib1,icontrib2
       real*8                                        :: ftmp
+      complex*16, dimension(:), allocatable         :: coeff1,coeff2
+      character(len=120), dimension(:), allocatable :: asubdir1,asubdir2
+
+
+      integer                                       :: nsubdir,&
+                                                       ncontrib
+      integer, dimension(:), allocatable            :: step,&
+                                                       icontrib
       complex*16, dimension(:), allocatable         :: coeff
       character(len=120), dimension(:), allocatable :: asubdir
+
+
 
       ! Open the files containing the geometries at which the
       ! target matching code failed/succeeded, and, if required,
@@ -460,6 +596,10 @@
       allocate(cnorm(nifg,itmp))
       cnorm=0.0d0
 
+
+      !-----------------------------------------------------------------
+      ! OLD, BODGY VERSION
+      !-----------------------------------------------------------------
       ! Loop over main directories/trajectories
       do n=1,nmaindir
          
@@ -472,7 +612,7 @@
          
          ! Read the coefficients for each timestep/subdirectory
          call getcoeff(coeff,amaindir(n),asubdir,nsubdir)
-
+      
          ! Determine which timesteps/subdirectories contribute to the
          ! spectrum
          call getcontrib(ncontrib,icontrib,amaindir(n),asubdir,nsubdir,&
@@ -484,8 +624,61 @@
             itmp=step(k)/dstep+1
             cnorm(ifg,itmp)=cnorm(ifg,itmp)+conjg(coeff(k))*coeff(k)
          enddo
-
+      
       enddo
+
+      !! Loop over IFGs
+      !do ifg=1,nifg
+      !   
+      !   ! Loop over pairs of main directories
+      !   do m=1,nmaindir
+      !      do n=1,nmaindir
+      !
+      !         ! Cycle if one or both of the current main directories
+      !         ! do not correspond to the current IFG
+      !         if (ifgindx(m).ne.ifg.or.ifgindx(n).ne.ifg) cycle
+      !
+      !         ! Get the lists of timesteps/subdirectories for the
+      !         ! current pair of trajectories
+      !         call getsubdirs(amaindir(m),nsubdir1,asubdir1,step1)
+      !         call getsubdirs(amaindir(n),nsubdir2,asubdir2,step2)
+      !         
+      !         ! Contribution of the current pair of trajectories to
+      !         ! all timesteps for the current IFG
+      !         tindx1=trajindx(m)
+      !         tindx2=trajindx(n)
+      !
+      !         ! Read the coefficients for each timestep/subdirectory
+      !         ! for the current pair of trajectories
+      !         call getcoeff(coeff1,amaindir(m),asubdir1,nsubdir1)
+      !         call getcoeff(coeff2,amaindir(n),asubdir2,nsubdir2)               
+      !
+      !         ! Determine which timesteps/subdirectories contribute to the
+      !         ! spectrum for the current pair of trajectories
+      !         call getcontrib(ncontrib1,icontrib1,amaindir(m),asubdir1,&
+      !              nsubdir1,1,staindx(m))
+      !         call getcontrib(ncontrib2,icontrib2,amaindir(n),asubdir2,&
+      !              nsubdir2,1,staindx(n))
+      !
+      !
+      !         ! Loop over timesteps
+      !         do i=1,nstep/dstep+1
+      !            
+      !            ! For each trajectory, determine which subdirectory,
+      !            ! if any, corresponds to the current timestep
+      !            i1=iarrloc(step1,(i-1)*dstep+1,nsubdir1)
+      !            i2=iarrloc(step2,(i-1)*dstep+1,nsubdir2)
+      !
+      !            !print*,i,i1,i2
+      !
+      !         enddo
+      !
+      !         STOP
+      !
+      !      enddo
+      !   enddo
+      !
+      !enddo
 
       cnorm=sqrt(cnorm)
 
@@ -495,6 +688,31 @@
       return
 
     end subroutine getcnorm
+
+!#######################################################################
+! iarrloc: returns the position loc of the value val in the integer
+!          array arr
+!#######################################################################
+    function iarrloc(arr,val,dim) result(loc)
+
+      implicit none
+
+      integer, intent(in)     :: dim,val
+      integer, dimension(dim) :: arr
+      integer                 :: loc,i
+      
+      loc=0
+
+      do i=1,dim
+         if (arr(i).eq.val) then
+            loc=i
+            exit
+         endif
+      enddo
+
+      return
+
+    end function iarrloc
 
 !#######################################################################
 
@@ -1006,7 +1224,7 @@
       filename=trim(amaindir)//'/'//trim(asubdir) &
            //'/adc_dav_x'//'/adc_'//amaindir(k1:k2)//'_' &
            //asubdir(1:k3)//'_dav_x'//'.log'
-      
+
       iadc=323
       open(iadc,file=filename,form='formatted',status='old')
       
@@ -1369,7 +1587,7 @@
 
       if (indx.eq.-1) then
          write(6,'(2(/,2x,a),/)') 'Error in subroutine get_state &
-              in trtxas.f90','File: '//trim(filename)
+              in adcspec.f90','File: '//trim(filename)
          stop
       endif
 
@@ -1797,8 +2015,19 @@
                ! Function value
                func=func+(1.0d0/real(nifg))*prefac*e*musq*shape &
                     * exp(-((t-tcent)**2)/(2.0d0*tsig**2))
-
+               
             enddo
+
+            ! Differential absorption spectrum
+            if (ldiff) then
+               do k=1,nosc0
+
+                  call lineshape(shape,gamma,e,de0(k))
+
+                  func=func-e*osc0(k)*(3.0d0/2.0d0)/de0(k)&
+                       *shape
+               enddo
+            endif
 
             ! Ouput the current photon energy, time delay and
             ! function value
@@ -1824,6 +2053,10 @@
       denom=(0.25d0*gamma**2) + (deltae-e)**2
 
       lfunc=numer/denom
+
+      !! TEST: Gaussian lineshape
+      !lfunc=exp(-((e-deltae)**2)/(2.0d0*(gamma/2.35482)**2))
+      !! TEST
 
       return
 

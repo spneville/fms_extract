@@ -639,9 +639,8 @@
          ! value
          !k=1+(step(i)-1)/dstep
          k=step(i)/dstep+1
+         dipexpec(:,k)=dipexpec(:,k)+c12*ovrlp*dipmat(i,s1,s2,:)         
 
-         dipexpec(:,k)=dipexpec(:,k)+c12*ovrlp*dipmat(i,s1,s2,:)
-         
       enddo
 
       return

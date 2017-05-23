@@ -151,6 +151,9 @@
 
       cirmsdsta=0
 
+      ldiff=.false.
+      osc0file=''
+
       ovrthrsh=0.75d0
       bastype=1
       
@@ -867,6 +870,15 @@
             if (keyword(i+1).eq.'=') then
                i=i+2
                read(keyword(i),'(a)') colppdir_file
+            else
+               goto 100
+            endif
+
+         else if (keyword(i).eq.'diff') then
+            if (keyword(i+1).eq.'=') then
+               i=i+2
+               ldiff=.true.
+               read(keyword(i),'(a)') osc0file
             else
                goto 100
             endif
