@@ -226,10 +226,7 @@
 !-----------------------------------------------------------------------
       if (lbound) then
          call getsubdirs(amaindir(1),nsubdir,asubdir,step)
-         call getcontrib(ncontrib,icontrib,amaindir(1),asubdir,&
-              nsubdir,0,staindx(1))
-         call get_nstates_f(nstates_f,amaindir(1),asubdir,nsubdir,&
-              icontrib)
+         call get_nstates_f(nstates_f,amaindir(1),asubdir,nsubdir)
       endif
 
 !-----------------------------------------------------------------------
@@ -463,62 +460,46 @@
 
 !#######################################################################
 
-    subroutine get_nstates_f(nstates_f,amaindir,asubdir,nsubdir,&
-         icontrib)
+    subroutine get_nstates_f(nstates_f,amaindir,asubdir,nsubdir)
 
       implicit none
       
       integer                                :: nstates_f,nsubdir,i,j,&
                                                 k1,k2,k3,unit,ilbl,istart,&
                                                 iend
-      integer, dimension(nsubdir)            :: icontrib
       character(len=120)                     :: amaindir,string
       character(len=120), dimension(nsubdir) :: asubdir
       character(len=250)                     :: filename
 
       unit=20
 
-      do i=1,nsubdir
+      iend=len_trim(amaindir)
+      k1=index(amaindir,'/ifg')+1
+      k2=len_trim(amaindir)
+      if (index(asubdir(1),'/').eq.0) then
+         k3=len_trim(asubdir(1))
+      else
+         k3=len_trim(asubdir(1))-1
+      endif
+      
+      filename=trim(amaindir)//'/'//trim(asubdir(1)) &
+           //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
+           //asubdir(1)(1:k3)//'_dav_x.inp'
+      
+      open(unit,file=filename,form='formatted',status='old')
+
+10    read(unit,'(a)') string
+      if (index(string,'diag_final_section').eq.0) goto 10
+      
+15    read(unit,'(a)') string
+      if (index(string,'nstates').eq.0) goto 15
+      
+      k1=index(string,'=')+1
+      k2=len_trim(string)
+      read(string(k1:k2),*) nstates_f
+      
+      close(unit)
          
-         if (icontrib(i).eq.0) cycle
-
-         iend=len_trim(amaindir)
-         !istart=0
-         !do j=3,iend
-         !   if (amaindir(j-2:j).eq.'../') istart=j+1
-         !enddo
-         !if (istart.eq.0) istart=1
-         !k1=index(amaindir(istart:iend),'/')+istart 
-         k1=index(amaindir,'/ifg')+1
-         k2=len_trim(amaindir)
-         if (index(asubdir(i),'/').eq.0) then
-            k3=len_trim(asubdir(i))
-         else
-            k3=len_trim(asubdir(i))-1
-         endif
-
-         filename=trim(amaindir)//'/'//trim(asubdir(i)) &
-              //'/adc_dav_x/adc_'//amaindir(k1:k2)//'_' &
-              //asubdir(i)(1:k3)//'_dav_x.inp'
-
-         open(unit,file=filename,form='formatted',status='old')
-
-10       read(unit,'(a)') string
-         if (index(string,'diag_final_section').eq.0) goto 10
-
-15       read(unit,'(a)') string
-         if (index(string,'nstates').eq.0) goto 15
-         
-         k1=index(string,'=')+1
-         k2=len_trim(string)
-         read(string(k1:k2),*) nstates_f
-         
-         close(unit)
-         
-         exit
-
-      enddo
-
       return
 
     end subroutine get_nstates_f
@@ -999,12 +980,6 @@
 ! Read the Cartesian coordinates from file
 !-----------------------------------------------------------------------
       iend=len_trim(amaindir)
-      !istart=0
-      !do i=3,iend
-      !   if (amaindir(i-2:i).eq.'../') istart=i+1
-      !enddo
-      !if (istart.eq.0) istart=1
-      !k1=index(amaindir(istart:iend),'/')+istart
       k1=index(amaindir,'/ifg')+1
       k2=len_trim(amaindir)
       if (index(asubdir,'/').eq.0) then
@@ -1399,12 +1374,6 @@
 
          ! (1) Excitation energies
          iend=len_trim(amaindir)
-         !istart=0
-         !do j=3,iend
-         !   if (amaindir(j-2:j).eq.'../') istart=j+1
-         !enddo
-         !if (istart.eq.0) istart=1
-         !k1=index(amaindir(istart:iend),'/')+istart
          k1=index(amaindir,'/ifg')+1
          k2=len_trim(amaindir)
          if (index(asubdir(i),'/').eq.0) then

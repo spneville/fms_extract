@@ -252,7 +252,7 @@
             ! permutations of identical nuclei)
             currgeom=xci(j,:)
             spawngeom=xspawn(i,:)
-            xmin=maxcoinc(currgeom,spawngeom)            
+            xmin=maxcoinc(currgeom,spawngeom)
 
             ! Displacement vector
             dvec=currgeom-xmin

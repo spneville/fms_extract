@@ -976,54 +976,11 @@
       real*8, dimension(natm*3) :: xcoo,xcurr,xmin,rotx,dvec
       real*8                    :: intcoo
 
-      integer, dimension(npermute)         :: indx
-      integer, dimension(natm)             :: is_perm
-      integer, dimension(:,:), allocatable :: P
-      integer                              :: n,ncomb,i,j,k,count
-      real*8                               :: rmsd,minrmsd
-
 !-----------------------------------------------------------------------
 ! Put the input geometry into maximum coincidence with the CI geometry
 ! subject to any user requested permutations of identical nuclei
 !-----------------------------------------------------------------------
-      if (npermute.eq.0) then
-         ! No permutation of identical atoms
-         xmin=xcoo
-         call kabsch(cigeom,xmin,rmsd,rotx)
-      else
-         ! Determine the indices of the nuclei that are to be permuted
-         is_perm=0
-         do i=1,natm
-            do j=1,npermute
-               if (pindx(j).eq.i) is_perm(i)=1
-            enddo
-         enddo
-         ! Generate all permutations of the indices of the nuclei being
-         ! permuted
-         ncomb=factorial(npermute)
-         allocate(P(ncomb,npermute))
-         call permutate(pindx,P)
-         ! Loop over all permutations of the nuclei being permuted,
-         ! calculate the RMSD from the CI geometry for each and save
-         ! the geometry with the lowest RMSD
-         minrmsd=1000000.0d0
-         do i=1,ncomb
-            indx=P(i,:)
-            xcurr=xcoo
-            count=0
-            do j=1,natm
-               if (is_perm(j).eq.1) then
-                  count=count+1
-                  xcurr(j*3-2:j*3)=xcoo(indx(count)*3-2:indx(count)*3)
-               endif
-            enddo
-            call kabsch(cigeom,xcurr,rmsd,rotx)
-            if (rmsd.lt.minrmsd) then
-               minrmsd=rmsd
-               xmin=rotx
-            endif
-         enddo
-      endif
+      xmin=maxcoinc(cigeom,xcoo)
 
 !-----------------------------------------------------------------------
 ! Calculate the distance from the minimum RMSD geometry to the CI
