@@ -259,7 +259,7 @@
       do i=1,nmaindir
 
          ! BODGE
-         if (staindx(i).eq.3) cycle
+         !if (staindx(i).eq.3) cycle
          ! BODGE
 
          write(6,'(2a)') 'Processing directory: ',trim(amaindir(i))
