@@ -258,9 +258,9 @@
       nfunc=0
       do i=1,nmaindir
 
-         !! BODGE
-         !if (staindx(i).eq.1) cycle
-         !! BODGE
+         ! BODGE
+         if (staindx(i).eq.3) cycle
+         ! BODGE
 
          write(6,'(2a)') 'Processing directory: ',trim(amaindir(i))
 
@@ -1990,11 +1990,9 @@
             ! Differential absorption spectrum
             if (ldiff) then
                do k=1,nosc0
-
                   call lineshape(shape,gamma,e,de0(k))
-
-                  func=func-e*osc0(k)*(3.0d0/2.0d0)/de0(k)&
-                       *shape
+                  func=func-(4.0d0*pi/c_au)*e*&
+                       osc0(k)*(3.0d0/2.0d0)/de0(k)*shape
                enddo
             endif
 
