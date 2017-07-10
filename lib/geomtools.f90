@@ -151,23 +151,12 @@
          enddo
       enddo
 
-!      rmsd=0.0d0
-!      do i=1,natm*3
-!         rmsd=rmsd+(x2(i)-x1(i))**2
-!      enddo
-!      rmsd=rmsd/natm
-!      rmsd=sqrt(rmsd)
-!      print*
-!      print*,"RMSD before rotation:",rmsd
-
       rmsd=0.0d0
       do i=1,natm*3
          rmsd=rmsd+(rotx(i)-x1(i))**2
       enddo
       rmsd=rmsd/natm
       rmsd=sqrt(rmsd)
-!      print*,"RMSD after rotation: ",rmsd
-!      print*,"min. possible RMSD:  ",sqrt(min)
 
       return
 

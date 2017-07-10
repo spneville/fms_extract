@@ -207,7 +207,7 @@
 !-----------------------------------------------------------------------
 ! Allocate arrays
 !-----------------------------------------------------------------------
-      call trtxas_alloc
+      call trxas_alloc
 
 !-----------------------------------------------------------------------
 ! Determine the norm of the C-vectors for each IFG at each timestep
@@ -287,9 +287,9 @@
               staindx(i),einit,nstates_f,deltae,ip,coeff,ifgindx(i),&
               step)
          
-         ! Calcuate the contribution to the bound part of the TR-TXAS 
+         ! Calcuate the contribution to the bound part of the TRXAS 
          ! from the current trajectory
-         if (lbound) call trtxas_currtraj(nsubdir,icontrib,nstates_f,&
+         if (lbound) call trxas_currtraj(nsubdir,icontrib,nstates_f,&
               ip,deltae,tdmsq,coeff,step,ifgindx(i))
 
       enddo
@@ -506,7 +506,7 @@
 
 !#######################################################################
 
-    subroutine trtxas_alloc
+    subroutine trxas_alloc
 
       use expec
       
@@ -525,7 +525,7 @@
 
       return
 
-    end subroutine trtxas_alloc
+    end subroutine trxas_alloc
 
 !#######################################################################
 
@@ -819,7 +819,7 @@
 
 !-----------------------------------------------------------------------
 ! Loop over timesteps/subdirectories and determine whether each one
-! contributes to the TR-TXAS
+! contributes to the TRXAS
 !-----------------------------------------------------------------------
       if (lbound) then
          do i=1,nsubdir
@@ -1840,7 +1840,7 @@
 
 !#######################################################################
 
-    subroutine trtxas_currtraj(nsubdir,icontrib,nstates_f,ip,deltae,&
+    subroutine trxas_currtraj(nsubdir,icontrib,nstates_f,ip,deltae,&
          tdmsq,coeff,step,ifg)
 
       use expec
@@ -1873,7 +1873,7 @@
             if (deltae(n,k).ge.ip(n)) cycle
 
             ! Keep track of the no. functions that will form
-            ! the final TR-TXAS
+            ! the final TRXAS
             nfunc=nfunc+1
 
             ! Fill in the parameter array for the current 
@@ -1900,7 +1900,7 @@
 
       return
 
-    end subroutine trtxas_currtraj
+    end subroutine trxas_currtraj
 
 !#######################################################################
 
@@ -1908,12 +1908,12 @@
 
       implicit none
 
-      write(6,'(/,2x,a,/)') 'Constructing the TR-TXAS...'
+      write(6,'(/,2x,a,/)') 'Constructing the spectrum...'
 
       if (lbound) then
-         call trtxas_total_bound
+         call trxas_total_bound
       else if (lcont) then
-         call trtxas_total_cont
+         call trxas_total_cont
       else if (ldyson) then         
          call trpes_adc_total
       endif
@@ -1924,7 +1924,7 @@
     
 !#######################################################################
 
-    subroutine trtxas_total_bound
+    subroutine trxas_total_bound
 
       use expec
       use sysdef
@@ -1942,13 +1942,13 @@
       delt=(tgrid(2)-tgrid(1))/tgrid(3)
 
 !-----------------------------------------------------------------------
-! Open the TR-TXAS output file
+! Open the TRXAS output file
 !-----------------------------------------------------------------------
       iout=20
       open(iout,file='trxas.dat',form='formatted',status='unknown')
 
 !-----------------------------------------------------------------------
-! Calculate and output the TR-TXAS
+! Calculate and output the TRXAS
 !-----------------------------------------------------------------------
       ! Loop over grid points
       do i=1,int(egrid(3))
@@ -2005,7 +2005,7 @@
 
       return
 
-    end subroutine trtxas_total_bound
+    end subroutine trxas_total_bound
 
 !#######################################################################
 
@@ -2031,7 +2031,7 @@
 
 !#######################################################################
 
-    subroutine trtxas_total_cont
+    subroutine trxas_total_cont
 
       use expec
       use sysdef
@@ -2048,13 +2048,13 @@
       delt=(tgrid(2)-tgrid(1))/tgrid(3) 
 
 !-----------------------------------------------------------------------
-! Open the TR-TXAS output file
+! Open the TRXAS output file
 !-----------------------------------------------------------------------
       iout=20
       open(iout,file='trxas.dat',form='formatted',status='unknown')
 
 !-----------------------------------------------------------------------
-! Calculate and output the TR-TXAS
+! Calculate and output the TRXAS
 !-----------------------------------------------------------------------
       do i=1,int(egrid(3))
          write(iout,*)
@@ -2067,7 +2067,7 @@
 
       return
 
-    end subroutine trtxas_total_cont
+    end subroutine trxas_total_cont
 
 !#######################################################################
 

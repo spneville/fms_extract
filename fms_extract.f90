@@ -1394,11 +1394,12 @@
 ! and dt
 !-----------------------------------------------------------------------
       ! (1) Spawn.log: no. spawned trajectories
+      nspawn=0
+
       unit=20
       afile=trim(atmp)//'/Spawn.log'
-      open(unit,file=afile,form='formatted',status='old')
-      
-      nspawn=0
+      open(unit,file=afile,form='formatted',status='old',err=999)
+
 10    continue
       read(unit,'(a)',end=11) string
       if (index(string,'#').eq.0) nspawn=nspawn+1
@@ -1406,6 +1407,8 @@
 11    continue
 
       close(unit)
+
+999   continue
 
       ! (2) Control.dat: system and propagation info
       afile=''
