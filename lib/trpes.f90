@@ -134,7 +134,7 @@
 ! Allocate the Gaussian parameter array gausspar
 !-----------------------------------------------------------------------
       maxgauss=nmaindir*nstep*nionize
-      allocate(gausspar(maxgauss,4))
+      allocate(gausspar(maxgauss,5))
       gausspar=0.0d0
 
 !-----------------------------------------------------------------------
@@ -403,7 +403,7 @@
          if (csq.gt.1d-4) then
             write(6,'(/,2x,2(a,x),/)') &
                  'mrci energies not found in the file:',trim(acolout)
-            STOP
+!            STOP
          endif
 
 !         ! If we have not found a set of mrci energies, then set the
@@ -526,7 +526,7 @@
             write(adj,'(a1,i1)') 'D',dj
             asdout=trim(amaindir)//'/'//trim(astep)//&
                  '_'//asi//'_'//adj//'.log'
-            open(unit,file=asdout,form='formatted',status='old')
+            open(unit,file=asdout,form='formatted',status='old',err=100)
 
             ! Read the Dyson orbital norm from the current superdyson
             ! output file
@@ -538,6 +538,8 @@
             ! Close the current superdyson output file
             close(unit)
 
+100         continue
+            
          enddo
 
          cycle
@@ -548,7 +550,7 @@
          if (csq.gt.1d-4) then
             write(6,'(/,2x,2(a,x),/)') &
                  'Dyson orbital norm not found in the file:',trim(asdout)
-            STOP
+!            STOP
          endif
 
       enddo
@@ -722,9 +724,6 @@
          write(iout,*)
          do j=1,int(tgrid(3))+1
             ! Set the current energy and time
-!            e=(i-1)*dele
-!            t=(j-1)*delt
-
             e=egrid(1)+(i-1)*dele
             t=tgrid(1)+(j-1)*delt
 
@@ -757,10 +756,10 @@
 !-----------------------------------------------------------------------
       open(iout,file='trpes_dnorm.gnu',form='formatted',status='unknown')
       write(iout,'(a)') '# ~/.gnuplot'
-      write(iout,'(a,/)') 'set palette @MATLAB'
+      write(iout,'(a,/)') 'set palette @PARULA'
       write(iout,'(a)') 'set pm3d map interpolate 0,0'
-      write(iout,'(a)') 'set xlabel ''Time (fs)'''
-      write(iout,'(a)') 'set ylabel ''E (eV)'''
+      write(iout,'(a)') 'set xlabel ''E (eV)'''
+      write(iout,'(a)') 'set ylabel ''Time (fs)'''
       write(iout,'(a)') 'splot ''trpes.dat'''
       write(iout,'(a)') 'pause -1'
       close(iout)

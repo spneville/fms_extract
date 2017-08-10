@@ -686,7 +686,7 @@
       do i=1,(nstep/dstep)+1
          !write(unit,'(11(x,F10.7))') (i-1)*dt*dstep/41.341375d0,&
          !     (avorben(j,i),j=1,10)
-         write(unit,'(3(4x,F12.7))'),(i-1)*dt*dstep/41.341375d0,&
+         write(unit,'(3(4x,F12.7))') (i-1)*dt*dstep/41.341375d0,&
               (avorben(2,i)-avorben(1,i))*27.2114d0
       enddo
       

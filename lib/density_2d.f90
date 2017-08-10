@@ -624,7 +624,7 @@
       write(iout,*)
       do i=1,npart
          ! Temporary bodge
-         if (pfunc(i).lt.0.5) write(iout,*),t,cent(i),pfunc(i)
+         if (pfunc(i).lt.0.5) write(iout,*) t,cent(i),pfunc(i)
       enddo
 
       return
@@ -661,7 +661,7 @@
       do i=1,n1
          if (i.gt.1) write(iout,*)
          do j=1,n2
-            write(iout,*),cent(1,i),cent(2,j),pfunc_2d(i,j)
+            write(iout,*) cent(1,i),cent(2,j),pfunc_2d(i,j)
          enddo
       enddo
 

@@ -531,7 +531,7 @@
       write(iout,*)
       do i=1,npart
          ! Temporary bodge
-         if (pfunc(i).lt.0.5) write(iout,*),t,cent(i),pfunc(i)
+         if (pfunc(i).lt.0.5) write(iout,*) t,cent(i),pfunc(i)
       enddo
 
       return
