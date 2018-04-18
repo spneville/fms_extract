@@ -108,6 +108,7 @@
     real*8                               :: eprobe,fwhm_e,fwhm_t
     real*8, dimension(3)                 :: egrid,tgrid
     logical(kind=4)                      :: lrenorm
+    logical(kind=4)                      :: bootstrap
     character(len=80)                    :: cifile,dnormfile,&
                                             vecfile
 

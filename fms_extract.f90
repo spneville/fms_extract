@@ -102,6 +102,7 @@
       adirfile=''
       lrenorm=.false.
       lmomrep=.false.
+      bootstrap=.false.
       
       acol_n=''
       acol_c=''
@@ -205,6 +206,15 @@
                i=i+2
                if (keyword(i).eq.'adpop') then
                   ijob=1
+                  if (keyword(i+1).eq.',') then
+                     i=i+2
+                     if (keyword(i).eq.'bootstrap') then
+                        bootstrap=.true.
+                     else
+                        msg='Unknown keyword: '//trim(keyword(i))
+                        call errcntrl(msg)
+                     endif
+                  endif
                else if (keyword(i).eq.'spawngeom') then
                   ijob=2
                else if (keyword(i).eq.'density') then
@@ -1227,7 +1237,7 @@
             write(6,'(/,2(2x,a),/)') 'Unknown atom type:',&
                  trim(atlbl(i))
             STOP
-         endif         
+         endif
       enddo
 
 !-----------------------------------------------------------------------
@@ -2693,58 +2703,13 @@
 
       implicit none
 
-      if (ijob.eq.1) then
-         call wradpop
-      else if (ijob.eq.3) then
+      if (ijob.eq.3) then
          call wrreddens
       endif
 
       return
 
     end subroutine wrout
-
-!#######################################################################
-
-    subroutine wradpop
-
-      use sysdef
-      use expec
-
-      implicit none
-      
-      integer                       :: i,n,unit
-      character(len=8)              :: aout
-
-      unit=20
-
-      ! Loop over states
-      do i=1,nsta
-
-         ! Write the current filename
-         aout=''
-         if (i.lt.10) then
-            write(aout,'(a6,i1)') 'adpop.',i
-         else
-            write(aout,'(a6,i2)') 'adpop.',i
-         endif
-
-         ! Open current file
-         open(unit,file=aout,form='formatted',status='unknown')
-
-         ! Write adiabatic populations for the current state
-         do n=1,nstep
-            write(unit,'(F10.2,14x,F6.4)') dt*(n-1)/41.341375d0,&
-                 adpop(i,n)
-         enddo
-
-         ! Close current file
-         close(unit)
-
-      enddo
-
-      return
-
-    end subroutine wradpop
 
 !#######################################################################
 
