@@ -236,7 +236,8 @@
          ! at the current timestep to file
          do i=1,nsta
             write(unit(i),'(F10.2,12x,2(2x,F6.4))') &
-                 dt*(n-1)/41.341375d0,adpop(i,n),stdev(i)
+                 dt*(n-1)/41.341375d0,adpop(i,n),&
+                 stdev(i)/sqrt(real(nintraj))*1.96d0
          enddo
             
       enddo
